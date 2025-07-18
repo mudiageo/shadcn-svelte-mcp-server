@@ -713,11 +713,12 @@ function setGitHubApiKey(apiKey: string): void {
     // Update the Authorization header for the GitHub API instance
     if (apiKey && apiKey.trim()) {
         (githubApi.defaults.headers as any)['Authorization'] = `Bearer ${apiKey.trim()}`;
-        console.log('GitHub API key updated successfully');
+        console.error('GitHub API key updated successfully');
     } else {
         // Remove authorization header if empty key provided
         delete (githubApi.defaults.headers as any)['Authorization'];
-        console.log('GitHub API key removed - using unauthenticated requests');
+        console.error('GitHub API key removed - using unauthenticated requests');
+        console.error('For higher rate limits and reliability, provide a GitHub API token. See setup instructions: https://github.com/Jpisnice/shadcn-ui-mcp-server#readme');
     }
 }
 
