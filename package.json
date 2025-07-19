@@ -1,6 +1,6 @@
 {
   "name": "@jpisnice/shadcn-ui-mcp-server",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A Model Context Protocol (MCP) server for shadcn/ui components, providing AI assistants with access to component source code, demos, blocks, and metadata.",
   "type": "module",
   "main": "./build/index.js",
