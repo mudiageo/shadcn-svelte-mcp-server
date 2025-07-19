@@ -813,11 +813,13 @@ function setGitHubApiKey(apiKey: string): void {
     // Update the Authorization header for the GitHub API instance
     if (apiKey && apiKey.trim()) {
         (githubApi.defaults.headers as any)['Authorization'] = `Bearer ${apiKey.trim()}`;
+
         logInfo('GitHub API key updated successfully');
     } else {
         // Remove authorization header if empty key provided
         delete (githubApi.defaults.headers as any)['Authorization'];
         logInfo('GitHub API key removed - using unauthenticated requests');
+
     }
 }
 
