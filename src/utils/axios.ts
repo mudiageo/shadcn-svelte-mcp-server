@@ -1,4 +1,5 @@
 import { Axios } from "axios";
+import { logError, logWarning, logInfo } from './logger.js';
 
 // Constants for the v4 repository structure
 const REPO_OWNER = 'shadcn-ui';
@@ -77,13 +78,105 @@ async function getComponentDemo(componentName: string): Promise<string> {
  */
 async function getAvailableComponents(): Promise<string[]> {
     try {
+        // First try the GitHub API
         const response = await githubApi.get(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${NEW_YORK_V4_PATH}/ui`);
-        return response.data
+        
+        if (!response.data || !Array.isArray(response.data)) {
+            throw new Error('Invalid response from GitHub API');
+        }
+        
+        const components = response.data
             .filter((item: any) => item.type === 'file' && item.name.endsWith('.tsx'))
             .map((item: any) => item.name.replace('.tsx', ''));
-    } catch (error) {
-        throw new Error('Failed to fetch available components');
+            
+        if (components.length === 0) {
+            throw new Error('No components found in the registry');
+        }
+        
+        return components;
+    } catch (error: any) {
+        logError('Error fetching components from GitHub API', error);
+        
+        // Check for specific error types
+        if (error.response) {
+            const status = error.response.status;
+            const message = error.response.data?.message || 'Unknown error';
+            
+            if (status === 403 && message.includes('rate limit')) {
+                throw new Error(`GitHub API rate limit exceeded. Please set GITHUB_PERSONAL_ACCESS_TOKEN environment variable for higher limits. Error: ${message}`);
+            } else if (status === 404) {
+                throw new Error(`Components directory not found. The path ${NEW_YORK_V4_PATH}/ui may not exist in the repository.`);
+            } else if (status === 401) {
+                throw new Error(`Authentication failed. Please check your GITHUB_PERSONAL_ACCESS_TOKEN if provided.`);
+            } else {
+                throw new Error(`GitHub API error (${status}): ${message}`);
+            }
+        }
+        
+        // If it's a network error or other issue, provide a fallback
+        if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
+            throw new Error(`Network error: ${error.message}. Please check your internet connection.`);
+        }
+        
+        // If all else fails, provide a fallback list of known components
+        logWarning('Using fallback component list due to API issues');
+        return getFallbackComponents();
     }
+}
+
+/**
+ * Fallback list of known shadcn/ui v4 components
+ * This is used when the GitHub API is unavailable
+ */
+function getFallbackComponents(): string[] {
+    return [
+        'accordion',
+        'alert',
+        'alert-dialog',
+        'aspect-ratio',
+        'avatar',
+        'badge',
+        'breadcrumb',
+        'button',
+        'calendar',
+        'card',
+        'carousel',
+        'chart',
+        'checkbox',
+        'collapsible',
+        'command',
+        'context-menu',
+        'dialog',
+        'drawer',
+        'dropdown-menu',
+        'form',
+        'hover-card',
+        'input',
+        'input-otp',
+        'label',
+        'menubar',
+        'navigation-menu',
+        'pagination',
+        'popover',
+        'progress',
+        'radio-group',
+        'resizable',
+        'scroll-area',
+        'select',
+        'separator',
+        'sheet',
+        'sidebar',
+        'skeleton',
+        'slider',
+        'sonner',
+        'switch',
+        'table',
+        'tabs',
+        'textarea',
+        'toggle',
+        'toggle-group',
+        'tooltip'
+    ];
 }
 
 /**
@@ -123,7 +216,7 @@ async function getComponentMetadata(componentName: string): Promise<any> {
                 : [],
         };
     } catch (error) {
-        console.error(`Error getting metadata for ${componentName}:`, error);
+        logError(`Error getting metadata for ${componentName}`, error);
         return null;
     }
 }
@@ -153,16 +246,17 @@ async function buildDirectoryTree(
         
         // Handle different response types from GitHub API
         if (!Array.isArray(contents)) {
-            // Check if it's an error response (like rate limit)
-            if (contents.message) {
-                if (contents.message.includes('rate limit exceeded')) {
-                    throw new Error(`GitHub API rate limit exceeded. ${contents.message} Consider setting GITHUB_PERSONAL_ACCESS_TOKEN environment variable for higher rate limits.`);
-                } else if (contents.message.includes('Not Found')) {
-                    throw new Error(`Path not found: ${path}. The path may not exist in the repository.`);
-                } else {
-                    throw new Error(`GitHub API error: ${contents.message}`);
-                }
+                    // Check if it's an error response (like rate limit)
+        if (contents.message) {
+            const message: string = contents.message;
+            if (message.includes('rate limit exceeded')) {
+                throw new Error(`GitHub API rate limit exceeded. ${message} Consider setting GITHUB_PERSONAL_ACCESS_TOKEN environment variable for higher rate limits.`);
+            } else if (message.includes('Not Found')) {
+                throw new Error(`Path not found: ${path}. The path may not exist in the repository.`);
+            } else {
+                throw new Error(`GitHub API error: ${message}`);
             }
+        }
             
             // If contents is not an array, it might be a single file
             if (contents.type === 'file') {
@@ -203,7 +297,7 @@ async function buildDirectoryTree(
                         const subTree = await buildDirectoryTree(owner, repo, item.path, branch);
                         result.children[item.name] = subTree;
                     } catch (error) {
-                        console.warn(`Failed to fetch subdirectory ${item.path}:`, error);
+                        logWarning(`Failed to fetch subdirectory ${item.path}: ${error instanceof Error ? error.message : String(error)}`);
                         result.children[item.name] = {
                             path: item.path,
                             type: 'directory',
@@ -216,7 +310,7 @@ async function buildDirectoryTree(
 
         return result;
     } catch (error: any) {
-        console.error(`Error building directory tree for ${path}:`, error);
+        logError(`Error building directory tree for ${path}`, error);
         
         // Check if it's already a well-formatted error from above
         if (error.message && (error.message.includes('rate limit') || error.message.includes('GitHub API error'))) {
@@ -225,9 +319,9 @@ async function buildDirectoryTree(
         
         // Provide more specific error messages for HTTP errors
         if (error.response) {
-            const status = error.response.status;
-            const responseData = error.response.data;
-            const message = responseData?.message || 'Unknown error';
+            const status: number = error.response.status;
+            const responseData: any = error.response.data;
+            const message: string = responseData?.message || 'Unknown error';
             
             if (status === 404) {
                 throw new Error(`Path not found: ${path}. The path may not exist in the repository.`);
@@ -323,13 +417,15 @@ function extractDependencies(code: string): string[] {
     
     // Match import statements
     const importRegex = /import\s+.*?\s+from\s+['"]([@\w\/\-\.]+)['"]/g;
-    let match;
+    let match: RegExpExecArray | null;
     
-    while ((match = importRegex.exec(code)) !== null) {
-        const dep = match[1];
+    match = importRegex.exec(code);
+    while (match !== null) {
+        const dep: string = match[1];
         if (!dep.startsWith('./') && !dep.startsWith('../') && !dep.startsWith('@/')) {
             dependencies.push(dep);
         }
+        match = importRegex.exec(code);
     }
     
     return [...new Set(dependencies)]; // Remove duplicates
@@ -345,21 +441,25 @@ function extractComponentUsage(code: string): string[] {
     
     // Extract from imports of components (assuming they start with capital letters)
     const importRegex = /import\s+\{([^}]+)\}\s+from/g;
-    let match;
+    let match: RegExpExecArray | null;
     
-    while ((match = importRegex.exec(code)) !== null) {
+    match = importRegex.exec(code);
+    while (match !== null) {
         const imports = match[1].split(',').map(imp => imp.trim());
         imports.forEach(imp => {
             if (imp[0] && imp[0] === imp[0].toUpperCase()) {
                 components.push(imp);
             }
         });
+        match = importRegex.exec(code);
     }
     
     // Also look for JSX components in the code
     const jsxRegex = /<([A-Z]\w+)/g;
-    while ((match = jsxRegex.exec(code)) !== null) {
+    match = jsxRegex.exec(code);
+    while (match !== null) {
         components.push(match[1]);
+        match = jsxRegex.exec(code);
     }
     
     return [...new Set(components)]; // Remove duplicates
@@ -411,8 +511,8 @@ async function buildDirectoryTreeWithFallback(
     } catch (error: any) {
         // If it's a rate limit error and we're asking for the default v4 path, provide fallback
         if (error.message && error.message.includes('rate limit') && path === NEW_YORK_V4_PATH) {
-            console.warn('Using fallback directory structure due to rate limit');
-            return getBasicV4Structure();
+                    logWarning('Using fallback directory structure due to rate limit');
+        return getBasicV4Structure();
         }
         // Re-throw other errors
         throw error;
@@ -713,12 +813,13 @@ function setGitHubApiKey(apiKey: string): void {
     // Update the Authorization header for the GitHub API instance
     if (apiKey && apiKey.trim()) {
         (githubApi.defaults.headers as any)['Authorization'] = `Bearer ${apiKey.trim()}`;
-        console.error('GitHub API key updated successfully');
+
+        logInfo('GitHub API key updated successfully');
     } else {
         // Remove authorization header if empty key provided
         delete (githubApi.defaults.headers as any)['Authorization'];
-        console.error('GitHub API key removed - using unauthenticated requests');
-        console.error('For higher rate limits and reliability, provide a GitHub API token. See setup instructions: https://github.com/Jpisnice/shadcn-ui-mcp-server#readme');
+        logInfo('GitHub API key removed - using unauthenticated requests');
+
     }
 }
 
