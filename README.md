@@ -1,347 +1,397 @@
 # Shadcn UI v4 MCP Server
 
-A Model Context Protocol (MCP) server for shadcn/ui v4 components, providing AI assistants with access to component source code, demos, blocks, and metadata.
+[![npm version](https://badge.fury.io/js/@jpisnice%2Fshadcn-ui-mcp-server.svg)](https://badge.fury.io/js/@jpisnice%2Fshadcn-ui-mcp-server)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Features
+A Model Context Protocol (MCP) server that provides AI assistants with comprehensive access to [shadcn/ui v4](https://ui.shadcn.com/) components, blocks, demos, and metadata. This server enables AI tools like Claude Desktop, Continue.dev, VS Code, Cursor, and other MCP-compatible clients to retrieve and work with shadcn/ui components seamlessly.
 
-- **JSON-RPC 2.0 Compliant**: Full compliance with JSON-RPC 2.0 specification
-- **MCP SDK 1.16.0**: Latest SDK with enhanced features and performance
-- **Structured Logging**: Winston-based logging with correlation IDs and request tracking
-- **Error Handling**: Comprehensive error handling with proper error codes and sanitization
-- **Circuit Breaker Pattern**: Protection against external API failures
-- **Input Validation**: Joi-based parameter validation with detailed error messages
-- **Performance Monitoring**: Slow request detection and performance metrics
-- **Security**: Data sanitization for sensitive information in logs
+## 🚀 Key Features
 
-## Installation
+- **Component Source Code**: Get the latest shadcn/ui v4 component TypeScript source
+- **Component Demos**: Access example implementations and usage patterns  
+- **Blocks Support**: Retrieve complete block implementations (dashboards, calendars, login forms, etc.)
+- **Metadata Access**: Get component dependencies, descriptions, and configuration details
+- **Directory Browsing**: Explore the shadcn/ui repository structure
+- **GitHub API Integration**: Efficient caching and intelligent rate limit handling
 
-```bash
-npm install shadcn-ui-mcp-server
-```
+## 📦 Quick Start
 
-## Usage
+### ⚡ Using npx (Recommended)
 
-### Basic Usage
+The fastest way to get started - no installation required!
 
 ```bash
-npx shadcn-ui-mcp-server
+# Basic usage (rate limited to 60 requests/hour)
+npx @jpisnice/shadcn-ui-mcp-server
+
+# With GitHub token for better rate limits (5000 requests/hour)
+npx @jpisnice/shadcn-ui-mcp-server --github-api-key ghp_your_token_here
+
+# Short form
+npx @jpisnice/shadcn-ui-mcp-server -g ghp_your_token_here
+
+# Using environment variable
+export GITHUB_PERSONAL_ACCESS_TOKEN=ghp_your_token_here
+npx @jpisnice/shadcn-ui-mcp-server
 ```
 
-### With GitHub API Key
+**🎯 Try it now**: Run `npx @jpisnice/shadcn-ui-mcp-server --help` to see all options!
+
+### 🔧 Command Line Options
 
 ```bash
-npx shadcn-ui-mcp-server --github-api-key YOUR_TOKEN
-# or
-npx shadcn-ui-mcp-server -g YOUR_TOKEN
+shadcn-ui-mcp-server [options]
+
+Options:
+  --github-api-key, -g <token>    GitHub Personal Access Token
+  --help, -h                      Show help message  
+  --version, -v                   Show version information
+
+Environment Variables:
+  GITHUB_PERSONAL_ACCESS_TOKEN    Alternative way to provide GitHub token
+
+Examples:
+  npx @jpisnice/shadcn-ui-mcp-server --help
+  npx @jpisnice/shadcn-ui-mcp-server --version
+  npx @jpisnice/shadcn-ui-mcp-server -g ghp_1234567890abcdef
+  GITHUB_PERSONAL_ACCESS_TOKEN=ghp_token npx @jpisnice/shadcn-ui-mcp-server
 ```
 
-### Environment Variables
+## 🔑 GitHub API Token Setup
 
+**Why do you need a token?**
+- Without token: Limited to 60 API requests per hour
+- With token: Up to 5,000 requests per hour
+- Better reliability and faster responses
+
+### 📝 Getting Your Token (2 minutes)
+
+1. **Go to GitHub Settings**:
+   - Visit [GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)](https://github.com/settings/tokens)
+   - Or: GitHub Profile → Settings → Developer settings → Personal access tokens
+
+2. **Generate New Token**:
+   - Click "Generate new token (classic)"
+   - Add a note: "shadcn-ui MCP server"
+   - **Expiration**: Choose your preference (90 days recommended)
+   - **Scopes**: ✅ **No scopes needed!** (public repository access is sufficient)
+
+3. **Copy Your Token**:
+   - Copy the generated token (starts with `ghp_`)
+   - ⚠️ **Save it securely** - you won't see it again!
+
+### 🚀 Using Your Token
+
+**Method 1: Command Line (Quick testing)**
 ```bash
-export GITHUB_PERSONAL_ACCESS_TOKEN=your_token_here
-export LOG_LEVEL=info  # debug, info, warn, error
-npx shadcn-ui-mcp-server
+npx @jpisnice/shadcn-ui-mcp-server --github-api-key ghp_your_token_here
 ```
 
-## MCP SDK 1.16.0 Features
+**Method 2: Environment Variable (Recommended)**
+```bash
+# Add to your shell profile (~/.bashrc, ~/.zshrc, etc.)
+export GITHUB_PERSONAL_ACCESS_TOKEN=ghp_your_token_here
 
-This server utilizes the latest MCP SDK 1.16.0 with the following enhancements:
+# Then simply run:
+npx @jpisnice/shadcn-ui-mcp-server
+```
 
-### Enhanced Type Safety
-- Improved TypeScript types for better development experience
-- Better error type definitions with more specific error codes
-- Enhanced request/response type safety
+## 🛠️ Editor Integration
 
-### Better Error Handling
-- More specific error types for different failure scenarios
-- Improved error propagation through the request chain
-- Better error context in log messages
+### VS Code Integration
 
-### Performance Improvements
-- Optimized request processing with better memory management
-- Enhanced transport handling with improved efficiency
-- Better resource management for long-running connections
+#### Method 1: Using Continue Extension
 
-### Developer Experience
-- Better debugging with enhanced error messages
-- Improved logging with more context information
-- Enhanced documentation and type hints
+1. **Install Continue Extension**:
+   - Open VS Code
+   - Go to Extensions (Ctrl+Shift+X)
+   - Search for "Continue" and install it
 
-## JSON-RPC 2.0 Compliance
-
-This server implements full JSON-RPC 2.0 compliance with the following features:
-
-### Error Codes
-
-- **Standard JSON-RPC 2.0 Errors**:
-  - `-32700`: Parse error
-  - `-32600`: Invalid request
-  - `-32601`: Method not found
-  - `-32602`: Invalid params
-  - `-32603`: Internal error
-
-- **Custom Application Errors**:
-  - `-32001`: Resource not found
-  - `-32002`: Insufficient permissions
-  - `-32003`: Rate limit exceeded
-  - `-32004`: Validation error
-  - `-32005`: External API error
-
-### Response Format
-
-All responses follow the JSON-RPC 2.0 specification:
+2. **Configure MCP Server**:
+   - Open Command Palette (Ctrl+Shift+P)
+   - Type "Continue: Configure" and select it
+   - Add this configuration to your settings:
 
 ```json
 {
-  "jsonrpc": "2.0",
-  "id": "request-id",
-  "result": { ... },
-  "error": {
-    "code": -32602,
-    "message": "Invalid parameters",
-    "data": { ... }
+  "continue.server": {
+    "mcpServers": {
+      "shadcn-ui": {
+        "command": "npx",
+        "args": ["@jpisnice/shadcn-ui-mcp-server", "--github-api-key", "ghp_your_token_here"]
+      }
+    }
   }
 }
 ```
 
-## Logging
+#### Method 2: Using Claude Extension
 
-The server uses structured logging with Winston:
+1. **Install Claude Extension**:
+   - Search for "Claude" in VS Code extensions
+   - Install the official Claude extension
 
-### Log Levels
-
-- `debug`: Detailed debugging information
-- `info`: General information about server operations
-- `warn`: Warning messages for potential issues
-- `error`: Error messages with full stack traces
-
-### Log Events
-
-- `server_startup`: Server initialization
-- `transport_initialized`: Transport setup tracking
-- `handlers_setup_start`: Handler registration start
-- `handlers_setup_complete`: Handler registration completion
-- `request_start`: Request processing begins
-- `request_success`: Request completed successfully
-- `request_error`: Request failed with error details
-- `slow_request`: Requests taking longer than threshold
-- `tool_error`: Tool execution errors
-- `external_api_error`: External API failures
-
-### Correlation IDs
-
-Each request is assigned a unique correlation ID for tracking:
+2. **Configure MCP Server**:
+   - Add to your VS Code settings.json:
 
 ```json
 {
-  "event": "request_start",
-  "correlationId": "uuid-v4",
-  "method": "call_tool",
-  "requestId": "client-request-id",
-  "timestamp": "2024-01-01T00:00:00.000Z",
-  "sdkVersion": "1.16.0"
-}
-```
-
-## Error Handling
-
-### Custom Error Classes
-
-- `McpError`: Base error class with JSON-RPC 2.0 error codes
-- `ValidationError`: Input validation failures
-- `ResourceNotFoundError`: Requested resource not found
-- `ExternalApiError`: External API communication failures
-
-### Error Sanitization
-
-Sensitive data is automatically sanitized in logs:
-
-```typescript
-// Input
-{ "password": "secret123", "token": "abc123" }
-
-// Logged output
-{ "password": "[REDACTED]", "token": "[REDACTED]" }
-```
-
-## Circuit Breaker Pattern
-
-The server implements circuit breaker pattern for external API calls:
-
-### States
-
-- **CLOSED**: Normal operation, requests pass through
-- **OPEN**: Service unavailable, requests fail fast
-- **HALF_OPEN**: Testing if service has recovered
-
-### Configuration
-
-```typescript
-{
-  failureThreshold: 5,    // Failures before opening circuit
-  timeout: 60000,         // Time to wait before half-open
-  successThreshold: 2     // Successes to close circuit
-}
-```
-
-## Input Validation
-
-All input parameters are validated using Joi schemas:
-
-### Validation Schemas
-
-- Component names: String, 1-100 characters
-- Search queries: String, 1-500 characters
-- Resource URIs: String, 1-1000 characters
-- Optional parameters: Properly typed and validated
-
-### Validation Errors
-
-Detailed error messages for validation failures:
-
-```json
-{
-  "error": {
-    "code": -32004,
-    "message": "Validation failed: componentName: \"\" is not allowed to be empty"
+  "claude.mcpServers": {
+    "shadcn-ui": {
+      "command": "npx",
+      "args": ["@jpisnice/shadcn-ui-mcp-server"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_your_token_here"
+      }
+    }
   }
 }
 ```
 
-## Performance Monitoring
+### Cursor Integration
 
-### Slow Request Detection
+#### Method 1: Global Configuration
 
-Requests taking longer than 5 seconds are logged as warnings:
+1. **Open Cursor Settings**:
+   - Go to Settings (Cmd/Ctrl + ,)
+   - Search for "MCP" or "Model Context Protocol"
 
+2. **Add MCP Server Configuration**:
 ```json
 {
-  "event": "slow_request",
-  "correlationId": "uuid",
-  "method": "get_component",
-  "duration": 7500,
-  "threshold": 5000
+  "mcpServers": {
+    "shadcn-ui": {
+      "command": "npx",
+      "args": ["@jpisnice/shadcn-ui-mcp-server", "--github-api-key", "ghp_your_token_here"]
+    }
+  }
 }
 ```
 
-### Request Duration Tracking
+#### Method 2: Workspace Configuration
 
-All requests are timed and logged:
+Create a `.cursorrules` file in your project root:
 
 ```json
 {
-  "event": "request_success",
-  "correlationId": "uuid",
-  "method": "call_tool",
-  "duration": 1250,
-  "timestamp": "2024-01-01T00:00:00.000Z"
+  "mcpServers": {
+    "shadcn-ui": {
+      "command": "npx",
+      "args": ["@jpisnice/shadcn-ui-mcp-server"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_your_token_here"
+      }
+    }
+  }
 }
 ```
 
-## Available Tools
+### Claude Desktop Integration
+
+Add to your Claude Desktop configuration (`~/.config/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "shadcn-ui": {
+      "command": "npx",
+      "args": ["@jpisnice/shadcn-ui-mcp-server", "--github-api-key", "ghp_your_token_here"]
+    }
+  }
+}
+```
+
+Or with environment variable:
+
+```json
+{
+  "mcpServers": {
+    "shadcn-ui": {
+      "command": "npx",
+      "args": ["@jpisnice/shadcn-ui-mcp-server"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_your_token_here"
+      }
+    }
+  }
+}
+```
+
+### Continue.dev Integration
+
+1. **Install Continue.dev**:
+   - Download from [continue.dev](https://continue.dev)
+   - Install the application
+
+2. **Configure MCP Server**:
+   - Open Continue.dev
+   - Go to Settings → MCP Servers
+   - Add new server:
+
+```json
+{
+  "name": "shadcn-ui",
+  "command": "npx",
+  "args": ["@jpisnice/shadcn-ui-mcp-server", "--github-api-key", "ghp_your_token_here"]
+}
+```
+
+## 🎯 Usage Examples
+
+### Getting Component Source Code
+
+Ask your AI assistant:
+```
+"Show me the source code for the shadcn/ui button component"
+```
+
+The AI can now access the complete TypeScript source code for the button component.
+
+### Creating a Dashboard
+
+Ask your AI assistant:
+```
+"Create a dashboard using shadcn/ui components. Use the dashboard-01 block as a starting point"
+```
+
+The AI can retrieve the complete dashboard block implementation and customize it for your needs.
+
+### Building a Login Form
+
+Ask your AI assistant:
+```
+"Help me build a login form using shadcn/ui components. Show me the available form components"
+```
+
+The AI can list all available components and help you build the form.
+
+## 🛠️ Available Tools
+
+The MCP server provides these tools for AI assistants:
 
 ### Component Tools
 
-- `get_component`: Get component source code
-- `get_component_demo`: Get component demo/example
-- `get_component_metadata`: Get component metadata
-- `list_components`: List all available components
+- **`get_component`** - Get component source code
+- **`get_component_demo`** - Get component usage examples
+- **`list_components`** - List all available components
+- **`get_component_metadata`** - Get component dependencies and info
 
-### Search Tools
+### Block Tools
 
-- `search_components`: Search for components
-- `get_themes`: Get available themes
-- `get_blocks`: Get available blocks
+- **`get_block`** - Get complete block implementations (dashboard-01, calendar-01, etc.)
+- **`list_blocks`** - List all available blocks with categories
 
 ### Repository Tools
 
-- `get_directory_structure`: Get repository directory structure
-- `get_block`: Get specific block code
+- **`get_directory_structure`** - Explore the shadcn/ui repository structure
 
-## Available Resources
+### Example Tool Usage
 
-- Static documentation resources
-- Component templates
-- Usage examples
-- Installation guides
+```typescript
+// These tools can be called by AI assistants via MCP protocol
 
-## Available Prompts
+// Get button component source
+{
+  "tool": "get_component",
+  "arguments": { "componentName": "button" }
+}
 
-- Component usage prompts
-- Best practices prompts
-- Troubleshooting prompts
+// List all components
+{
+  "tool": "list_components",
+  "arguments": {}
+}
 
-## Development
-
-### Building
-
-```bash
-npm run build
+// Get dashboard block
+{
+  "tool": "get_block", 
+  "arguments": { "blockName": "dashboard-01" }
+}
 ```
 
-### Development Mode
+## 🐛 Troubleshooting
 
+### Common Issues
+
+**"Rate limit exceeded" errors:**
 ```bash
-npm run dev
+# Solution: Add GitHub API token
+npx @jpisnice/shadcn-ui-mcp-server --github-api-key ghp_your_token_here
 ```
 
-### Testing
-
+**"Command not found" errors:**
 ```bash
-npm test
+# Solution: Install Node.js 18+ and ensure npx is available
+node --version  # Should be 18+
+npx --version   # Should work
 ```
 
-## Production Deployment
-
-### Environment Configuration
-
+**Component not found:**
 ```bash
-# Production logging
-export LOG_LEVEL=warn
-
-# GitHub API token
-export GITHUB_PERSONAL_ACCESS_TOKEN=your_token
-
-# Start server
-npx shadcn-ui-mcp-server
+# Check available components first
+npx @jpisnice/shadcn-ui-mcp-server
+# Then call list_components tool via your MCP client
 ```
 
-### Log Management
+**Network/proxy issues:**
+```bash
+# Set proxy if needed
+export HTTP_PROXY=http://your-proxy:8080
+export HTTPS_PROXY=http://your-proxy:8080
+npx @jpisnice/shadcn-ui-mcp-server
+```
 
-- Log files are automatically rotated (5MB max, 5 files)
-- Logs include timestamps and structured data
-- Sensitive information is automatically sanitized
+**Editor not recognizing MCP server:**
+```bash
+# Verify the server is running
+npx @jpisnice/shadcn-ui-mcp-server --help
 
-### Monitoring
+# Check your editor's MCP configuration
+# Ensure the command and args are correct
+```
 
-- Monitor log files for errors and warnings
-- Track slow request patterns
-- Monitor circuit breaker states
-- Set up alerts for critical errors
+### Debug Mode
 
-## Error Codes Reference
+Enable verbose logging:
 
-| Code | Description | Usage |
-|------|-------------|-------|
-| -32700 | Parse error | Invalid JSON in request |
-| -32600 | Invalid request | Malformed request structure |
-| -32601 | Method not found | Unknown method called |
-| -32602 | Invalid params | Parameter validation failed |
-| -32603 | Internal error | Unexpected server error |
-| -32001 | Resource not found | Requested resource doesn't exist |
-| -32002 | Insufficient permissions | Access denied |
-| -32003 | Rate limit exceeded | API rate limit hit |
-| -32004 | Validation error | Input validation failed |
-| -32005 | External API error | External service failure |
+```bash
+# Set debug environment variable
+DEBUG=* npx @jpisnice/shadcn-ui-mcp-server --github-api-key ghp_your_token
+```
 
-## Contributing
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## License
+## 📞 Support
 
-MIT License - see LICENSE file for details.
+- 🐛 [Report Issues](https://github.com/Jpisnice/shadcn-ui-mcp-server/issues)
+- 💬 [Discussions](https://github.com/Jpisnice/shadcn-ui-mcp-server/discussions)
+- 📖 [Documentation](https://github.com/Jpisnice/shadcn-ui-mcp-server#readme)
+- 📦 [npm Package](https://www.npmjs.com/package/@jpisnice/shadcn-ui-mcp-server)
+
+## 🔗 Related Projects
+
+- [shadcn/ui](https://ui.shadcn.com/) - The component library this server provides access to
+- [Model Context Protocol](https://modelcontextprotocol.io/) - The protocol specification
+- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) - Official MCP SDK
+
+## ⭐ Acknowledgments
+
+- [shadcn](https://github.com/shadcn) for the amazing UI component library
+- [Anthropic](https://anthropic.com) for the Model Context Protocol specification
+- The open source community for inspiration and contributions
+
+---
+
+**Made with ❤️ by [Janardhan Polle](https://github.com/Jpisnice)**
+
+**Star ⭐ this repo if you find it helpful!**
