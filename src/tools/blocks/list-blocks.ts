@@ -1,4 +1,5 @@
 import { axios } from '../../utils/axios.js';
+import { logError } from '../../utils/logger.js';
 
 export async function handleListBlocks({ category }: { category?: string }) {
   try {
@@ -10,7 +11,7 @@ export async function handleListBlocks({ category }: { category?: string }) {
       }]
     };
   } catch (error) {
-    console.error('Failed to list blocks:', error);
+    logError('Failed to list blocks', error);
     throw new Error(`Failed to list blocks: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

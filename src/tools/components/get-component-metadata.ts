@@ -1,4 +1,5 @@
 import { axios } from '../../utils/axios.js';
+import { logError } from '../../utils/logger.js';
 
 export async function handleGetComponentMetadata({ componentName }: { componentName: string }) {
   try {
@@ -10,7 +11,7 @@ export async function handleGetComponentMetadata({ componentName }: { componentN
       content: [{ type: "text", text: JSON.stringify(metadata, null, 2) }]
     };
   } catch (error) {
-    console.error(`Failed to get metadata for component "${componentName}":`, error);
+    logError(`Failed to get metadata for component "${componentName}"`, error);
     throw new Error(`Failed to get metadata for component "${componentName}": ${error instanceof Error ? error.message : String(error)}`);
   }
 }

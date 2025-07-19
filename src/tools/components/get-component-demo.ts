@@ -1,4 +1,5 @@
 import { axios } from '../../utils/axios.js';
+import { logError } from '../../utils/logger.js';
 
 export async function handleGetComponentDemo({ componentName }: { componentName: string }) {
   try {
@@ -7,7 +8,7 @@ export async function handleGetComponentDemo({ componentName }: { componentName:
       content: [{ type: "text", text: demoCode }]
     };
   } catch (error) {
-    console.error(`Failed to get demo for component "${componentName}":`, error);
+    logError(`Failed to get demo for component "${componentName}"`, error);
     throw new Error(`Failed to get demo for component "${componentName}": ${error instanceof Error ? error.message : String(error)}`);
   }
 }

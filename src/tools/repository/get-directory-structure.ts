@@ -1,4 +1,5 @@
 import { axios } from '../../utils/axios.js';
+import { logError } from '../../utils/logger.js';
 
 export async function handleGetDirectoryStructure({ 
   path, 
@@ -25,7 +26,7 @@ export async function handleGetDirectoryStructure({
       }]
     };
   } catch (error) {
-    console.error('Failed to get directory structure:', error);
+    logError('Failed to get directory structure', error);
     throw new Error(`Failed to get directory structure: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

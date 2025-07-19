@@ -28,6 +28,7 @@ import {
 import { z } from "zod";
 import { validateAndSanitizeParams } from './utils/validation.js';
 import { circuitBreakers } from './utils/circuit-breaker.js';
+import { logError, logInfo } from './utils/logger.js';
 
 // Define basic component schemas here for tool validation
 const componentSchema = { componentName: z.string() };
@@ -55,7 +56,7 @@ async function handleRequest<T>(
     
     return result;
   } catch (error) {
-    console.error(`Error in ${method}:`, error);
+    logError(`Error in ${method}`, error);
     throw error;
   }
 }
@@ -66,7 +67,7 @@ async function handleRequest<T>(
  * @param server - The MCP server instance
  */
 export const setupHandlers = (server: Server): void => {
-  console.info('Setting up request handlers...');
+  logInfo('Setting up request handlers...');
 
   // List available resources when clients request them
   server.setRequestHandler(
@@ -306,10 +307,10 @@ export const setupHandlers = (server: Server): void => {
   
   // Add global error handler
   server.onerror = (error) => {
-    console.error('MCP server error:', error);
+    logError('MCP server error', error);
   };
 
-  console.info('Handlers setup complete');
+  logInfo('Handlers setup complete');
 };
 
 /**
@@ -344,7 +345,7 @@ function getToolSchema(toolName: string): z.ZodType | undefined {
         return undefined;
     }
   } catch (error) {
-    console.error('Schema error:', error);
+    logError('Schema error', error);
     return undefined;
   }
 }

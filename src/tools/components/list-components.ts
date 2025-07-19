@@ -1,4 +1,5 @@
 import { axios } from '../../utils/axios.js';
+import { logError } from '../../utils/logger.js';
 
 export async function handleListComponents() {
   try {
@@ -13,7 +14,7 @@ export async function handleListComponents() {
       }]
     };
   } catch (error) {
-    console.error('Failed to list components:', error);
+    logError('Failed to list components', error);
     throw new Error(`Failed to list components: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

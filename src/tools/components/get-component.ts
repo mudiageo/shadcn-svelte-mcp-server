@@ -1,4 +1,5 @@
 import { axios } from '../../utils/axios.js';
+import { logError } from '../../utils/logger.js';
 
 export async function handleGetComponent({ componentName }: { componentName: string }) {
   try {
@@ -7,7 +8,7 @@ export async function handleGetComponent({ componentName }: { componentName: str
       content: [{ type: "text", text: sourceCode }]
     };
   } catch (error) {
-    console.error(`Failed to get component "${componentName}":`, error);
+    logError(`Failed to get component "${componentName}"`, error);
     throw new Error(`Failed to get component "${componentName}": ${error instanceof Error ? error.message : String(error)}`);
   }
 }

@@ -1,4 +1,5 @@
 import { Axios } from "axios";
+import { logError, logWarning, logInfo } from './logger.js';
 
 // Constants for the v4 repository structure
 const REPO_OWNER = 'shadcn-ui';
@@ -94,7 +95,7 @@ async function getAvailableComponents(): Promise<string[]> {
         
         return components;
     } catch (error: any) {
-        console.error('Error fetching components from GitHub API:', error);
+        logError('Error fetching components from GitHub API', error);
         
         // Check for specific error types
         if (error.response) {
@@ -118,7 +119,7 @@ async function getAvailableComponents(): Promise<string[]> {
         }
         
         // If all else fails, provide a fallback list of known components
-        console.warn('Using fallback component list due to API issues');
+        logWarning('Using fallback component list due to API issues');
         return getFallbackComponents();
     }
 }
@@ -215,7 +216,7 @@ async function getComponentMetadata(componentName: string): Promise<any> {
                 : [],
         };
     } catch (error) {
-        console.error(`Error getting metadata for ${componentName}:`, error);
+        logError(`Error getting metadata for ${componentName}`, error);
         return null;
     }
 }
@@ -296,7 +297,7 @@ async function buildDirectoryTree(
                         const subTree = await buildDirectoryTree(owner, repo, item.path, branch);
                         result.children[item.name] = subTree;
                     } catch (error) {
-                        console.warn(`Failed to fetch subdirectory ${item.path}:`, error);
+                        logWarning(`Failed to fetch subdirectory ${item.path}: ${error instanceof Error ? error.message : String(error)}`);
                         result.children[item.name] = {
                             path: item.path,
                             type: 'directory',
@@ -309,7 +310,7 @@ async function buildDirectoryTree(
 
         return result;
     } catch (error: any) {
-        console.error(`Error building directory tree for ${path}:`, error);
+        logError(`Error building directory tree for ${path}`, error);
         
         // Check if it's already a well-formatted error from above
         if (error.message && (error.message.includes('rate limit') || error.message.includes('GitHub API error'))) {
@@ -510,8 +511,8 @@ async function buildDirectoryTreeWithFallback(
     } catch (error: any) {
         // If it's a rate limit error and we're asking for the default v4 path, provide fallback
         if (error.message && error.message.includes('rate limit') && path === NEW_YORK_V4_PATH) {
-            console.warn('Using fallback directory structure due to rate limit');
-            return getBasicV4Structure();
+                    logWarning('Using fallback directory structure due to rate limit');
+        return getBasicV4Structure();
         }
         // Re-throw other errors
         throw error;
@@ -812,11 +813,11 @@ function setGitHubApiKey(apiKey: string): void {
     // Update the Authorization header for the GitHub API instance
     if (apiKey && apiKey.trim()) {
         (githubApi.defaults.headers as any)['Authorization'] = `Bearer ${apiKey.trim()}`;
-        console.log('GitHub API key updated successfully');
+        logInfo('GitHub API key updated successfully');
     } else {
         // Remove authorization header if empty key provided
         delete (githubApi.defaults.headers as any)['Authorization'];
-        console.log('GitHub API key removed - using unauthenticated requests');
+        logInfo('GitHub API key removed - using unauthenticated requests');
     }
 }
 

@@ -1,6 +1,7 @@
 /**
  * Simple console logging wrapper
  * All logging goes to stderr to avoid interfering with JSON-RPC stdout communication
+ * All methods use console.error under the hood
  */
 
 /**
@@ -8,7 +9,7 @@
  */
 export function logError(message: string, error?: any): void {
   const errorMessage = error instanceof Error ? error.message : String(error);
-  console.error(`ERROR: ${message} - ${errorMessage}`);
+  console.error(`ERR: ${message} - ${errorMessage}`);
   if (error instanceof Error && error.stack) {
     console.error(`Stack: ${error.stack}`);
   }
@@ -18,12 +19,12 @@ export function logError(message: string, error?: any): void {
  * Simple warning logging function
  */
 export function logWarning(message: string): void {
-  console.warn(`WARN: ${message}`);
+  console.error(`WARN: ${message}`);
 }
 
 /**
  * Simple info logging function
  */
 export function logInfo(message: string): void {
-  console.info(`INFO: ${message}`);
+  console.error(`INFO: ${message}`);
 } 

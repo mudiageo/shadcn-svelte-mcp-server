@@ -1,4 +1,5 @@
 import { axios } from '../../utils/axios.js';
+import { logError } from '../../utils/logger.js';
 
 export async function handleGetBlock({ 
   blockName, 
@@ -13,7 +14,7 @@ export async function handleGetBlock({
       content: [{ type: "text", text: JSON.stringify(blockData, null, 2) }]
     };
   } catch (error) {
-    console.error(`Failed to get block "${blockName}":`, error);
+    logError(`Failed to get block "${blockName}"`, error);
     throw new Error(`Failed to get block "${blockName}": ${error instanceof Error ? error.message : String(error)}`);
   }
 }

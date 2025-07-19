@@ -19,6 +19,7 @@ import {
   toolHandlers,
   toolSchemas
 } from './tools/index.js';
+import { logError, logInfo, logWarning } from './utils/logger.js';
 
 
 /**
@@ -93,16 +94,16 @@ For more information, visit: https://github.com/yourusername/shadcn-ui-mcp-serve
  */
 async function main() {
   try {
-    console.info('Starting Shadcn UI v4 MCP Server...');
+    logInfo('Starting Shadcn UI v4 MCP Server...');
 
     const { githubApiKey } = await parseArgs();
 
     // Configure GitHub API key if provided
     if (githubApiKey) {
       axios.setGitHubApiKey(githubApiKey);
-      console.info('GitHub API configured with token');
+      logInfo('GitHub API configured with token');
     } else {
-      console.warn('No GitHub API key provided. Rate limited to 60 requests/hour.');
+      logWarning('No GitHub API key provided. Rate limited to 60 requests/hour.');
     }
 
     // Initialize the MCP server with metadata and capabilities
@@ -283,20 +284,20 @@ async function main() {
     // Start server using stdio transport
     const transport = new StdioServerTransport();
     
-    console.info('Transport initialized: stdio');
+    logInfo('Transport initialized: stdio');
 
     await server.connect(transport);
     
-    console.info('Server started successfully');
+    logInfo('Server started successfully');
 
   } catch (error) {
-    console.error('Failed to start server:', error);
+    logError('Failed to start server', error);
     process.exit(1);
   }
 }
 
 // Start the server
 main().catch((error) => {
-  console.error('Unhandled startup error:', error);
+  logError('Unhandled startup error', error);
   process.exit(1);
 });
