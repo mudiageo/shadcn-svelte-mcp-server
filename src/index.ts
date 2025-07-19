@@ -50,7 +50,7 @@ Environment Variables:
   GITHUB_PERSONAL_ACCESS_TOKEN    Alternative way to provide GitHub token
   LOG_LEVEL                       Log level (debug, info, warn, error) - default: info
 
-For more information, visit: https://github.com/yourusername/shadcn-ui-mcp-server
+For more information, visit: https://github.com/Jpisnice/shadcn-ui-mcp-server
 `);
     process.exit(0);
   }
