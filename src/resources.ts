@@ -5,6 +5,8 @@
  * Resources are static content or dynamically generated content referenced by URIs.
  */
 
+import { logError } from './utils/logger.js';
+
 /**
  * Resource definitions exported to the MCP handler
  * Each resource has a name, description, uri and contentType
@@ -80,7 +82,7 @@ const getComponentsList = async () => {
       contentType: 'application/json',
     };
   } catch (error) {
-    console.error("Error fetching components list:", error);
+    logError("Error fetching components list", error);
     return {
       content: JSON.stringify({
         error: "Failed to fetch components list",

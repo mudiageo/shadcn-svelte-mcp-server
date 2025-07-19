@@ -14,6 +14,13 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { setupHandlers } from './handler.js';
 import { axios } from './utils/axios.js';
+import { z } from 'zod';
+import { 
+  toolHandlers,
+  toolSchemas
+} from './tools/index.js';
+import { logError, logInfo, logWarning } from './utils/logger.js';
+
 
 /**
  * Parse command line arguments
@@ -41,6 +48,7 @@ Examples:
 
 Environment Variables:
   GITHUB_PERSONAL_ACCESS_TOKEN    Alternative way to provide GitHub token
+  LOG_LEVEL                       Log level (debug, info, warn, error) - default: info
 
 For more information, visit: https://github.com/yourusername/shadcn-ui-mcp-server
 `);
@@ -63,7 +71,7 @@ For more information, visit: https://github.com/yourusername/shadcn-ui-mcp-serve
       const packageJson = JSON.parse(packageContent);
       console.log(`shadcn-ui-mcp-server v${packageJson.version}`);
     } catch (error) {
-      console.log('shadcn-ui-mcp-server v1.0.0');
+      console.log('shadcn-ui-mcp-server v1.0.2');
     }
     process.exit(0);
   }
@@ -86,29 +94,187 @@ For more information, visit: https://github.com/yourusername/shadcn-ui-mcp-serve
  */
 async function main() {
   try {
+    logInfo('Starting Shadcn UI v4 MCP Server...');
+
     const { githubApiKey } = await parseArgs();
 
     // Configure GitHub API key if provided
     if (githubApiKey) {
       axios.setGitHubApiKey(githubApiKey);
-      console.error('GitHub API key configured successfully');
+      logInfo('GitHub API configured with token');
     } else {
-      console.error('Warning: No GitHub API key provided. Rate limited to 60 requests/hour.');
-      console.error('Use --github-api-key flag or set GITHUB_PERSONAL_ACCESS_TOKEN environment variable.');
+      logWarning('No GitHub API key provided. Rate limited to 60 requests/hour.');
     }
 
     // Initialize the MCP server with metadata and capabilities
+    // Following MCP SDK 1.16.0 best practices
     const server = new Server(
       {
         name: "shadcn-ui-mcp-server",
-        version: "1.0.0",
+        version: "1.0.2",
       },
       {
         capabilities: {
-          resources: {},      // Will be filled with registered resources
-          prompts: {},        // Will be filled with registered prompts
-          tools: {},          // Will be filled with registered tools
-        },
+          resources: {
+            "get_components": {
+              description: "List of available shadcn/ui components that can be used in the project",
+              uri: "resource:get_components",
+              contentType: "text/plain"
+            }
+          },
+          prompts: {
+            "component_usage": {
+              description: "Get usage examples for a specific component",
+              arguments: {
+                componentName: {
+                  type: "string",
+                  description: "Name of the component to get usage for"
+                }
+              }
+            },
+            "component_search": {
+              description: "Search for components by name or description",
+              arguments: {
+                query: {
+                  type: "string",
+                  description: "Search query"
+                }
+              }
+            },
+            "component_comparison": {
+              description: "Compare two components side by side",
+              arguments: {
+                component1: {
+                  type: "string",
+                  description: "First component name"
+                },
+                component2: {
+                  type: "string",
+                  description: "Second component name"
+                }
+              }
+            },
+            "component_recommendation": {
+              description: "Get component recommendations based on use case",
+              arguments: {
+                useCase: {
+                  type: "string",
+                  description: "Use case description"
+                }
+              }
+            },
+            "component_tutorial": {
+              description: "Get a step-by-step tutorial for using a component",
+              arguments: {
+                componentName: {
+                  type: "string",
+                  description: "Name of the component for tutorial"
+                }
+              }
+            }
+          },
+          tools: {
+            "get_component": {
+              description: "Get the source code for a specific shadcn/ui v4 component",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  componentName: {
+                    type: "string",
+                    description: "Name of the shadcn/ui component (e.g., \"accordion\", \"button\")"
+                  }
+                },
+                required: ["componentName"]
+              }
+            },
+            "get_component_demo": {
+              description: "Get demo code illustrating how a shadcn/ui v4 component should be used",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  componentName: {
+                    type: "string",
+                    description: "Name of the shadcn/ui component (e.g., \"accordion\", \"button\")"
+                  }
+                },
+                required: ["componentName"]
+              }
+            },
+            "list_components": {
+              description: "Get all available shadcn/ui v4 components",
+              inputSchema: {
+                type: "object",
+                properties: {}
+              }
+            },
+            "get_component_metadata": {
+              description: "Get metadata for a specific shadcn/ui v4 component",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  componentName: {
+                    type: "string",
+                    description: "Name of the shadcn/ui component (e.g., \"accordion\", \"button\")"
+                  }
+                },
+                required: ["componentName"]
+              }
+            },
+            "get_directory_structure": {
+              description: "Get the directory structure of the shadcn-ui v4 repository",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  path: {
+                    type: "string",
+                    description: "Path within the repository (default: v4 registry)"
+                  },
+                  owner: {
+                    type: "string",
+                    description: "Repository owner (default: \"shadcn-ui\")"
+                  },
+                  repo: {
+                    type: "string",
+                    description: "Repository name (default: \"ui\")"
+                  },
+                  branch: {
+                    type: "string",
+                    description: "Branch name (default: \"main\")"
+                  }
+                }
+              }
+            },
+            "get_block": {
+              description: "Get source code for a specific shadcn/ui v4 block (e.g., calendar-01, dashboard-01)",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  blockName: {
+                    type: "string",
+                    description: "Name of the block (e.g., \"calendar-01\", \"dashboard-01\", \"login-02\")"
+                  },
+                  includeComponents: {
+                    type: "boolean",
+                    description: "Whether to include component files for complex blocks (default: true)"
+                  }
+                },
+                required: ["blockName"]
+              }
+            },
+            "list_blocks": {
+              description: "Get all available shadcn/ui v4 blocks with categorization",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  category: {
+                    type: "string",
+                    description: "Filter by category (calendar, dashboard, login, sidebar, products)"
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     );
 
@@ -117,17 +283,21 @@ async function main() {
 
     // Start server using stdio transport
     const transport = new StdioServerTransport();
+    
+    logInfo('Transport initialized: stdio');
+
     await server.connect(transport);
     
-    console.error('Shadcn UI v4 MCP Server started successfully');
+    logInfo('Server started successfully');
+
   } catch (error) {
-    console.error('Failed to start server:', error);
+    logError('Failed to start server', error);
     process.exit(1);
   }
 }
 
 // Start the server
 main().catch((error) => {
-  console.error('Unhandled error:', error);
+  logError('Unhandled startup error', error);
   process.exit(1);
 });

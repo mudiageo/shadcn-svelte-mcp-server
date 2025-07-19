@@ -1,0 +1,321 @@
+---
+description: JSON-RPC 2.0 compliance and structured error logging standards for MCP servers
+globs: ["**/*.js", "**/*.ts", "**/*.mjs"]
+alwaysApply:true
+---
+
+# JSON-RPC 2.0 Compliance & Error Logging Rules
+
+## Protocol Compliance Standards
+
+### Message Format Requirements
+- **MANDATORY**: All requests and responses MUST be valid JSON-RPC 2.0 format
+- **MANDATORY**: Include `jsonrpc: "2.0"` field in every response
+- **MANDATORY**: Match request `id` exactly in response `id`
+- **MANDATORY**: Use either `result` (success) OR `error` (failure), never both
+
+### Error Code Standards
+```typescript
+const MCP_ERROR_CODES = {
+  // Standard JSON-RPC 2.0 errors
+  PARSE_ERROR: -32700,
+  INVALID_REQUEST: -32600,
+  METHOD_NOT_FOUND: -32601,
+  INVALID_PARAMS: -32602,
+  INTERNAL_ERROR: -32603,
+  // Custom application errors
+  RESOURCE_NOT_FOUND: -32001,
+  INSUFFICIENT_PERMISSIONS: -32002,
+  RATE_LIMIT_EXCEEDED: -32003
+} as const;
+```
+
+### Response Structure Template
+```typescript
+interface JsonRpcResponse {
+  jsonrpc: "2.0";
+  id: string | number | null;
+  result?: any;
+  error?: {
+    code: number;
+    message: string;
+    data?: any;
+  };
+}
+```
+
+## Structured Logging Implementation
+
+### Logger Configuration
+```typescript
+import winston from 'winston';
+
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.errors({ stack: true }),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console(),
+    new winston.transports.File({ filename: 'mcp-server.log' })
+  ]
+});
+```
+
+### Error Logging Format
+```typescript
+// MANDATORY: Use this structure for all error logs
+logger.error({
+  event: 'jsonrpc_error',
+  correlationId: req.correlationId,
+  method: req.method,
+  errorCode: MCP_ERROR_CODES.INVALID_PARAMS,
+  errorMessage: 'Invalid parameters provided',
+  requestId: req.id,
+  timestamp: new Date().toISOString(),
+  stack: error.stack,
+  sanitizedInput: sanitizeForLogging(req.params)
+});
+```
+
+## Error Handling Implementation
+
+### Custom Error Classes
+```typescript
+class McpError extends Error {
+  constructor(
+    public code: number,
+    message: string,
+    public data?: any
+  ) {
+    super(message);
+    this.name = 'McpError';
+  }
+}
+
+class ValidationError extends McpError {
+  constructor(message: string, details?: any) {
+    super(MCP_ERROR_CODES.INVALID_PARAMS, message, details);
+  }
+}
+```
+
+### Global Error Handler
+```typescript
+// MANDATORY: Implement global error handlers
+process.on('uncaughtException', (error: Error) => {
+  logger.error({
+    event: 'uncaught_exception',
+    error: error.message,
+    stack: error.stack,
+    timestamp: new Date().toISOString()
+  });
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason: any) => {
+  logger.error({
+    event: 'unhandled_promise_rejection',
+    reason: reason,
+    timestamp: new Date().toISOString()
+  });
+});
+```
+
+## Response Builder
+```typescript
+function buildJsonRpcResponse(
+  id: string | number | null,
+  result?: any,
+  error?: McpError
+): JsonRpcResponse {
+  const response: JsonRpcResponse = {
+    jsonrpc: "2.0",
+    id
+  };
+
+  if (error) {
+    response.error = {
+      code: error.code,
+      message: error.message,
+      ...(error.data && { data: error.data })
+    };
+  } else {
+    response.result = result;
+  }
+
+  return response;
+}
+```
+
+## Method Handler Template
+```typescript
+async function handleMethod(request: JsonRpcRequest): Promise<JsonRpcResponse> {
+  const correlationId = generateCorrelationId();
+  const startTime = Date.now();
+  
+  logger.info({
+    event: 'method_start',
+    correlationId,
+    method: request.method,
+    requestId: request.id,
+    timestamp: new Date().toISOString()
+  });
+
+  try {
+    // Input validation using Joi
+    const validatedParams = validateRequest(methodSchema, request.params);
+    
+    // Business logic execution
+    const result = await executeBusinessLogic(validatedParams);
+    
+    logger.info({
+      event: 'method_success',
+      correlationId,
+      method: request.method,
+      requestId: request.id,
+      duration: Date.now() - startTime
+    });
+
+    return buildJsonRpcResponse(request.id, result);
+    
+  } catch (error) {
+    const mcpError = error instanceof McpError 
+      ? error 
+      : new McpError(MCP_ERROR_CODES.INTERNAL_ERROR, 'Internal server error');
+    
+    logger.error({
+      event: 'method_error',
+      correlationId,
+      method: request.method,
+      requestId: request.id,
+      errorCode: mcpError.code,
+      errorMessage: mcpError.message,
+      stack: error.stack,
+      duration: Date.now() - startTime
+    });
+
+    return buildJsonRpcResponse(request.id, undefined, mcpError);
+  }
+}
+```
+
+## Security & Data Sanitization
+```typescript
+function sanitizeForLogging(data: any): any {
+  const sensitiveFields = ['password', 'token', 'secret', 'key', 'auth'];
+  
+  if (typeof data === 'object' && data !== null) {
+    const sanitized = { ...data };
+    for (const field of sensitiveFields) {
+      if (sanitized[field]) {
+        sanitized[field] = '[REDACTED]';
+      }
+    }
+    return sanitized;
+  }
+  
+  return data;
+}
+```
+
+## Development Rules
+
+### Code Standards
+- **NEVER** use `console.log`, `console.error`, or `console.warn`
+- **ALWAYS** use the structured logger
+- **NEVER** expose sensitive information in error messages
+- **ALWAYS** include correlation IDs for request tracking
+- **NEVER** return stack traces in production error responses
+- **ALWAYS** validate input parameters before processing
+
+### Request Flow Logging
+```typescript
+// MANDATORY: Log request start
+logger.info({
+  event: 'request_start',
+  correlationId,
+  method: request.method,
+  requestId: request.id
+});
+
+// MANDATORY: Log request completion
+logger.info({
+  event: 'request_complete',
+  correlationId,
+  method: request.method,
+  requestId: request.id,
+  duration: Date.now() - startTime,
+  success: !error
+});
+```
+
+## Production Deployment Checklist
+
+- [ ] Set `LOG_LEVEL=warn` or `LOG_LEVEL=error` in production
+- [ ] Configure log rotation and retention policies
+- [ ] Set up centralized logging (ELK stack, CloudWatch, etc.)
+- [ ] Implement health monitoring and alerting
+- [ ] Configure error tracking (Sentry, Rollbar, etc.)
+- [ ] Verify all sensitive data is sanitized in logs
+- [ ] Test error handling scenarios
+- [ ] Validate JSON-RPC 2.0 compliance with automated tests
+
+## Performance Monitoring
+```typescript
+// MANDATORY: Monitor slow requests
+if (duration > 5000) {
+  logger.warn({
+    event: 'slow_request',
+    method: request.method,
+    duration,
+    correlationId,
+    threshold: 5000
+  });
+}
+```
+
+## Circuit Breaker Pattern
+```typescript
+class CircuitBreaker {
+  private failures = 0;
+  private readonly threshold = 5;
+  private readonly timeout = 60000;
+  private nextAttempt = Date.now();
+  
+  async execute<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.isOpen()) {
+      throw new McpError(
+        MCP_ERROR_CODES.INTERNAL_ERROR, 
+        'Service temporarily unavailable'
+      );
+    }
+    
+    try {
+      const result = await fn();
+      this.onSuccess();
+      return result;
+    } catch (error) {
+      this.onFailure();
+      throw error;
+    }
+  }
+  
+  private isOpen(): boolean {
+    return this.failures >= this.threshold && Date.now() < this.nextAttempt;
+  }
+  
+  private onSuccess(): void {
+    this.failures = 0;
+  }
+  
+  private onFailure(): void {
+    this.failures++;
+    if (this.failures >= this.threshold) {
+      this.nextAttempt = Date.now() + this.timeout;
+    }
+  }
+}
+```
