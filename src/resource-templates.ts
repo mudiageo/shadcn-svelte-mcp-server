@@ -12,13 +12,13 @@
 export const resourceTemplates = [
   {
     name: 'get_install_script_for_component',
-    description: 'Generate installation script for a specific shadcn/ui component based on package manager',
+    description: 'Generate installation script for a specific shadcn-svelte component based on package manager',
     uriTemplate: 'resource-template:get_install_script_for_component?packageManager={packageManager}&component={component}',
     contentType: 'text/plain',
   },
   {
     name: 'get_installation_guide',
-    description: 'Get the installation guide for shadcn/ui based on framework and package manager',
+    description: 'Get the installation guide for shadcn-svelte based on framework and package manager',
     uriTemplate: 'resource-template:get_installation_guide?framework={framework}&packageManager={packageManager}',
     contentType: 'text/plain',
   },
@@ -73,19 +73,19 @@ export const getResourceTemplate = (uri: string) => {
         
         switch (packageManager.toLowerCase()) {
           case 'npm':
-            installCommand = `npx shadcn@latest add ${component}`;
+            installCommand = `npx shadcn-svelte@latest add ${component}`;
             break;
           case 'pnpm':
-            installCommand = `pnpm dlx shadcn@latest add ${component}`;
+            installCommand = `pnpm dlx shadcn-svelte@latest add ${component}`;
             break;
           case 'yarn':
-            installCommand = `yarn dlx shadcn@latest add ${component}`;
+            installCommand = `yarn dlx shadcn-svelte@latest add ${component}`;
             break;
           case 'bun':
-            installCommand = `bunx --bun shadcn@latest add ${component}`;
+            installCommand = `bunx --bun shadcn-svelte@latest add ${component}`;
             break;
           default:
-            installCommand = `npx shadcn@latest add ${component}`;
+            installCommand = `npx shadcn-svelte@latest add ${component}`;
         }
         
         return {
@@ -124,116 +124,173 @@ export const getResourceTemplate = (uri: string) => {
         
         // Generate installation guide based on framework and package manager
         const guides = {
-          next: {
-            description: "Installation guide for Next.js project",
+          sveltekit: {
+            description: "Installation guide for SvelteKit project",
             steps: [
-              "Create a Next.js project if you don't have one already:",
-              `${packageManager} create next-app my-app`,
+              "Create a SvelteKit project if you don't have one already:",
+              packageManager === 'npm' ? 'npx sv create my-app' :
+              packageManager === 'pnpm' ? 'pnpm dlx sv create my-app' :
+              packageManager === 'yarn' ? 'yarn dlx sv create my-app' :
+              packageManager === 'bun' ? 'bun x sv create my-app' : 'npx sv create my-app',
               "",
               "Navigate to your project directory:",
               "cd my-app",
               "",
-              "Add shadcn/ui to your project:",
-              packageManager === 'npm' ? 'npx shadcn-ui@latest init' : 
-              packageManager === 'pnpm' ? 'pnpm dlx shadcn-ui@latest init' :
-              packageManager === 'yarn' ? 'yarn dlx shadcn-ui@latest init' :
-              packageManager === 'bun' ? 'bunx --bun shadcn-ui@latest init' : 'npx shadcn-ui@latest init',
+              "Add TailwindCSS using the Svelte CLI:",
+              packageManager === 'npm' ? 'npx sv add tailwindcss' :
+              packageManager === 'pnpm' ? 'pnpm dlx sv add tailwindcss' :
+              packageManager === 'yarn' ? 'yarn dlx sv add tailwindcss' :
+              packageManager === 'bun' ? 'bun x sv add tailwindcss' : 'npx sv add tailwindcss',
               "",
-              "Follow the prompts to select your preferences",
+              "Setup path aliases in svelte.config.js if not using default $lib:",
+              "// Add to kit.alias if needed",
               "",
-              "Once initialized, you can add components:",
-              packageManager === 'npm' ? 'npx shadcn-ui@latest add button' : 
-              packageManager === 'pnpm' ? 'pnpm dlx shadcn-ui@latest add button' :
-              packageManager === 'yarn' ? 'yarn dlx shadcn-ui@latest add button' :
-              packageManager === 'bun' ? 'bunx --bun shadcn-ui@latest add button' : 'npx shadcn-ui@latest add button',
+              "Run the shadcn-svelte CLI:",
+              packageManager === 'npm' ? 'npx shadcn-svelte@latest init' :
+              packageManager === 'pnpm' ? 'pnpm dlx shadcn-svelte@latest init' :
+              packageManager === 'yarn' ? 'yarn dlx shadcn-svelte@latest init' :
+              packageManager === 'bun' ? 'bun x shadcn-svelte@latest init' : 'npx shadcn-svelte@latest init',
               "",
-              "Now you can use the component in your project!"
+              "Configure components.json with your preferences:",
+              "- Base color: Slate",
+              "- Global CSS file: src/app.css",
+              "- Import aliases: $lib/components, $lib/utils, etc.",
+              "",
+              "Add components to your project:",
+              packageManager === 'npm' ? 'npx shadcn-svelte@latest add button' :
+              packageManager === 'pnpm' ? 'pnpm dlx shadcn-svelte@latest add button' :
+              packageManager === 'yarn' ? 'yarn dlx shadcn-svelte@latest add button' :
+              packageManager === 'bun' ? 'bun x shadcn-svelte@latest add button' : 'npx shadcn-svelte@latest add button',
+              "",
+              "Import and use components:",
+              'import { Button } from "$lib/components/ui/button/index.js";'
             ]
           },
           vite: {
-            description: "Installation guide for Vite project",
+            description: "Installation guide for Vite + Svelte project",
             steps: [
-              "Create a Vite project if you don't have one already:",
-              `${packageManager}${packageManager === 'npm' ? ' create' : ''} vite my-app -- --template react-ts`,
+              "Create a Vite + Svelte project if you don't have one already:",
+              packageManager === 'npm' ? 'npm create svelte@latest my-app' :
+              packageManager === 'pnpm' ? 'pnpm create svelte@latest my-app' :
+              packageManager === 'yarn' ? 'yarn create svelte@latest my-app' :
+              packageManager === 'bun' ? 'bun create svelte@latest my-app' : 'npm create svelte@latest my-app',
               "",
               "Navigate to your project directory:",
               "cd my-app",
               "",
-              "Install dependencies:",
-              `${packageManager} ${packageManager === 'npm' ? 'install' : 'add'} -D tailwindcss postcss autoprefixer`,
+              "Add TailwindCSS using the Svelte CLI:",
+              packageManager === 'npm' ? 'npx sv add tailwindcss' :
+              packageManager === 'pnpm' ? 'pnpm dlx sv add tailwindcss' :
+              packageManager === 'yarn' ? 'yarn dlx sv add tailwindcss' :
+              packageManager === 'bun' ? 'bun x sv add tailwindcss' : 'npx sv add tailwindcss',
               "",
-              "Initialize Tailwind CSS:",
-              "npx tailwindcss init -p",
+              "Edit tsconfig.json and tsconfig.app.json to add path aliases:",
+              'Add baseUrl: "." and paths: { "$lib": ["./src/lib"], "$lib/*": ["./src/lib/*"] }',
               "",
-              "Add shadcn/ui to your project:",
-              packageManager === 'npm' ? 'npx shadcn-ui@latest init' : 
-              packageManager === 'pnpm' ? 'pnpm dlx shadcn-ui@latest init' :
-              packageManager === 'yarn' ? 'yarn dlx shadcn-ui@latest init' :
-              packageManager === 'bun' ? 'bunx --bun shadcn-ui@latest init' : 'npx shadcn-ui@latest init',
+              "Update vite.config.ts with path resolution:",
+              'Add alias: { $lib: path.resolve("./src/lib") }',
               "",
-              "Follow the prompts to select your preferences",
+              "Run the shadcn-svelte CLI:",
+              packageManager === 'npm' ? 'npx shadcn-svelte@latest init' :
+              packageManager === 'pnpm' ? 'pnpm dlx shadcn-svelte@latest init' :
+              packageManager === 'yarn' ? 'yarn dlx shadcn-svelte@latest init' :
+              packageManager === 'bun' ? 'bun x shadcn-svelte@latest init' : 'npx shadcn-svelte@latest init',
               "",
-              "Once initialized, you can add components:",
-              packageManager === 'npm' ? 'npx shadcn-ui@latest add button' : 
-              packageManager === 'pnpm' ? 'pnpm dlx shadcn-ui@latest add button' :
-              packageManager === 'yarn' ? 'yarn dlx shadcn-ui@latest add button' :
-              packageManager === 'bun' ? 'bunx --bun shadcn-ui@latest add button' : 'npx shadcn-ui@latest add button',
+              "Configure components.json with your preferences",
               "",
-              "Now you can use the component in your project!"
+              "Add components to your project:",
+              packageManager === 'npm' ? 'npx shadcn-svelte@latest add button' :
+              packageManager === 'pnpm' ? 'pnpm dlx shadcn-svelte@latest add button' :
+              packageManager === 'yarn' ? 'yarn dlx shadcn-svelte@latest add button' :
+              packageManager === 'bun' ? 'bun x shadcn-svelte@latest add button' : 'npx shadcn-svelte@latest add button'
             ]
           },
-          remix: {
-            description: "Installation guide for Remix project",
+          astro: {
+            description: "Installation guide for Astro + Svelte project",
             steps: [
-              "Create a Remix project if you don't have one already:",
-              `${packageManager === 'npm' ? 'npx' : packageManager === 'pnpm' ? 'pnpm dlx' : packageManager === 'yarn' ? 'yarn dlx' : 'bunx'} create-remix my-app`,
+              "Create an Astro project if you don't have one already:",
+              packageManager === 'npm' ? 'npm create astro@latest' :
+              packageManager === 'pnpm' ? 'pnpm create astro@latest' :
+              packageManager === 'yarn' ? 'yarn create astro@latest' :
+              packageManager === 'bun' ? 'bun create astro@latest' : 'npm create astro@latest',
               "",
-              "Navigate to your project directory:",
-              "cd my-app",
+              "Navigate to your project directory and configure:",
+              "Choose TypeScript: Yes, How strict: Strict",
               "",
-              "Install dependencies:",
-              `${packageManager} ${packageManager === 'npm' ? 'install' : 'add'} -D tailwindcss postcss autoprefixer`,
+              "Add Svelte to your Astro project:",
+              packageManager === 'npm' ? 'npx astro add svelte' :
+              packageManager === 'pnpm' ? 'pnpm dlx astro add svelte' :
+              packageManager === 'yarn' ? 'yarn dlx astro add svelte' :
+              packageManager === 'bun' ? 'bun x astro add svelte' : 'npx astro add svelte',
               "",
-              "Initialize Tailwind CSS:",
-              "npx tailwindcss init -p",
+              "Add TailwindCSS to your Astro project:",
+              packageManager === 'npm' ? 'npx astro add tailwind' :
+              packageManager === 'pnpm' ? 'pnpm dlx astro add tailwind' :
+              packageManager === 'yarn' ? 'yarn dlx astro add tailwind' :
+              packageManager === 'bun' ? 'bun x astro add tailwind' : 'npx astro add tailwind',
               "",
-              "Add shadcn/ui to your project:",
-              packageManager === 'npm' ? 'npx shadcn-ui@latest init' : 
-              packageManager === 'pnpm' ? 'pnpm dlx shadcn-ui@latest init' :
-              packageManager === 'yarn' ? 'yarn dlx shadcn-ui@latest init' :
-              packageManager === 'bun' ? 'bunx --bun shadcn-ui@latest init' : 'npx shadcn-ui@latest init',
+              "Setup path aliases in tsconfig.json:",
+              'Add baseUrl: "." and paths: { "$lib": ["./src/lib"], "$lib/*": ["./src/lib/*"] }',
               "",
-              "Follow the prompts to select your preferences",
+              "Create global CSS file at src/styles/app.css with Tailwind imports",
               "",
-              "Once initialized, you can add components:",
-              packageManager === 'npm' ? 'npx shadcn-ui@latest add button' : 
-              packageManager === 'pnpm' ? 'pnpm dlx shadcn-ui@latest add button' :
-              packageManager === 'yarn' ? 'yarn dlx shadcn-ui@latest add button' :
-              packageManager === 'bun' ? 'bunx --bun shadcn-ui@latest add button' : 'npx shadcn-ui@latest add button',
+              "Import app.css in src/pages/index.astro",
               "",
-              "Now you can use the component in your project!"
+              "Run the shadcn-svelte CLI:",
+              packageManager === 'npm' ? 'npx shadcn-svelte@latest init' :
+              packageManager === 'pnpm' ? 'pnpm dlx shadcn-svelte@latest init' :
+              packageManager === 'yarn' ? 'yarn dlx shadcn-svelte@latest init' :
+              packageManager === 'bun' ? 'bun x shadcn-svelte@latest init' : 'npx shadcn-svelte@latest init',
+              "",
+              "Update astro.config.mjs to set applyBaseStyles: false for Tailwind",
+              "",
+              "Add components to your project:",
+              packageManager === 'npm' ? 'npx shadcn-svelte@latest add button' :
+              packageManager === 'pnpm' ? 'pnpm dlx shadcn-svelte@latest add button' :
+              packageManager === 'yarn' ? 'yarn dlx shadcn-svelte@latest add button' :
+              packageManager === 'bun' ? 'bun x shadcn-svelte@latest add button' : 'npx shadcn-svelte@latest add button',
+              "",
+              "Remember to use client directives in .astro files for interactive components"
             ]
           },
-          default: {
-            description: "Generic installation guide",
+          manual: {
+            description: "Manual installation guide for Svelte projects",
             steps: [
-              "Make sure you have a React project set up",
+              "Add TailwindCSS using the Svelte CLI:",
+              packageManager === 'npm' ? 'npx sv add tailwindcss' :
+              packageManager === 'pnpm' ? 'pnpm dlx sv add tailwindcss' :
+              packageManager === 'yarn' ? 'yarn dlx sv add tailwindcss' :
+              packageManager === 'bun' ? 'bun x sv add tailwindcss' : 'npx sv add tailwindcss',
               "",
-              "Add shadcn/ui to your project:",
-              packageManager === 'npm' ? 'npx shadcn-ui@latest init' : 
-              packageManager === 'pnpm' ? 'pnpm dlx shadcn-ui@latest init' :
-              packageManager === 'yarn' ? 'yarn dlx shadcn-ui@latest init' :
-              packageManager === 'bun' ? 'bunx --bun shadcn-ui@latest init' : 'npx shadcn-ui@latest init',
+              "Install required dependencies:",
+              packageManager === 'npm' ? 'npm i tailwind-variants clsx tailwind-merge tw-animate-css' :
+              packageManager === 'pnpm' ? 'pnpm i tailwind-variants clsx tailwind-merge tw-animate-css' :
+              packageManager === 'yarn' ? 'yarn add tailwind-variants clsx tailwind-merge tw-animate-css' :
+              packageManager === 'bun' ? 'bun install tailwind-variants clsx tailwind-merge tw-animate-css' : 'npm i tailwind-variants clsx tailwind-merge tw-animate-css',
               "",
-              "Follow the prompts to select your preferences",
+              "Install Lucide icons:",
+              packageManager === 'npm' ? 'npm i @lucide/svelte' :
+              packageManager === 'pnpm' ? 'pnpm i @lucide/svelte' :
+              packageManager === 'yarn' ? 'yarn add @lucide/svelte' :
+              packageManager === 'bun' ? 'bun install @lucide/svelte' : 'npm i @lucide/svelte',
               "",
-              "Once initialized, you can add components:",
-              packageManager === 'npm' ? 'npx shadcn-ui@latest add button' : 
-              packageManager === 'pnpm' ? 'pnpm dlx shadcn-ui@latest add button' :
-              packageManager === 'yarn' ? 'yarn dlx shadcn-ui@latest add button' :
-              packageManager === 'bun' ? 'bunx --bun shadcn-ui@latest add button' : 'npx shadcn-ui@latest add button',
+              "Configure path aliases in your config files",
+              "For SvelteKit: Update svelte.config.js",
+              "For Vite: Update tsconfig.json and vite.config.ts",
               "",
-              "Now you can use the component in your project!"
+              "Add the provided CSS variables and styles to your global CSS file",
+              "Configure Tailwind theme with CSS variables",
+              "",
+              "Create a cn utility function in $lib/utils.ts:",
+              "export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)); }",
+              "",
+              "Import styles in your layout file",
+              "",
+              "Add components to your project:",
+              packageManager === 'npm' ? 'npx shadcn-svelte@latest add button' :
+              packageManager === 'pnpm' ? 'pnpm dlx shadcn-svelte@latest add button' :
+              packageManager === 'yarn' ? 'yarn dlx shadcn-svelte@latest add button' :
+              packageManager === 'bun' ? 'bun x shadcn-svelte@latest add button' : 'npx shadcn-svelte@latest add button'
             ]
           }
         };

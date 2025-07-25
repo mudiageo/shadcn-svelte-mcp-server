@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Test script for shadcn-ui-mcp-server
+# Test script for shadcn-svelte-mcp-server
 # This script validates that the package is ready for npm publishing
 
 set -e
 
-echo "🧪 Testing shadcn-ui-mcp-server package..."
+echo "🧪 Testing shadcn-svelte-mcp-server package..."
 
 # Test 1: Help command
 echo "✅ Testing --help flag..."

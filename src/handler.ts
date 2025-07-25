@@ -100,13 +100,13 @@ export const setupHandlers = (server: Server): void => {
         const registeredTools = [
           {
             name: 'get_component',
-            description: 'Get the source code for a specific shadcn/ui v4 component',
+            description: 'Get the source code for a specific shadcn-svelte v1 component',
             inputSchema: {
               type: 'object',
               properties: {
                 componentName: {
                   type: 'string',
-                  description: 'Name of the shadcn/ui component (e.g., "accordion", "button")',
+                  description: 'Name of the shadcn-svelte component (e.g., "accordion", "button")',
                 },
               },
               required: ['componentName'],
@@ -114,13 +114,13 @@ export const setupHandlers = (server: Server): void => {
           },
           {
             name: 'get_component_demo',
-            description: 'Get demo code illustrating how a shadcn/ui v4 component should be used',
+            description: 'Get demo code illustrating how a shadcn-svelte v1 component should be used',
             inputSchema: {
               type: 'object',
               properties: {
                 componentName: {
                   type: 'string',
-                  description: 'Name of the shadcn/ui component (e.g., "accordion", "button")',
+                  description: 'Name of the shadcn-svelte component (e.g., "accordion", "button")',
                 },
               },
               required: ['componentName'],
@@ -128,7 +128,7 @@ export const setupHandlers = (server: Server): void => {
           },
           {
             name: 'list_components',
-            description: 'Get all available shadcn/ui v4 components',
+            description: 'Get all available shadcn-svelte v1 components',
             inputSchema: {
               type: 'object',
               properties: {},
@@ -136,13 +136,13 @@ export const setupHandlers = (server: Server): void => {
           },
           {
             name: 'get_component_metadata',
-            description: 'Get metadata for a specific shadcn/ui v4 component',
+            description: 'Get metadata for a specific shadcn-svelte v1 component',
             inputSchema: {
               type: 'object',
               properties: {
                 componentName: {
                   type: 'string',
-                  description: 'Name of the shadcn/ui component (e.g., "accordion", "button")',
+                  description: 'Name of the shadcn-svelte component (e.g., "accordion", "button")',
                 },
               },
               required: ['componentName'],
@@ -160,11 +160,11 @@ export const setupHandlers = (server: Server): void => {
                 },
                 owner: {
                   type: 'string',
-                  description: 'Repository owner (default: "shadcn-ui")',
+                  description: 'Repository owner (default: "huntabyte")',
                 },
                 repo: {
                   type: 'string',
-                  description: 'Repository name (default: "ui")',
+                  description: 'Repository name (default: "shadcn-svelte")',
                 },
                 branch: {
                   type: 'string',
@@ -175,7 +175,7 @@ export const setupHandlers = (server: Server): void => {
           },
           {
             name: 'get_block',
-            description: 'Get source code for a specific shadcn/ui v4 block (e.g., calendar-01, dashboard-01)',
+            description: 'Get source code for a specific shadcn-svelte v1 block (e.g., calendar-01, dashboard-01)',
             inputSchema: {
               type: 'object',
               properties: {
@@ -193,7 +193,7 @@ export const setupHandlers = (server: Server): void => {
           },
           {
             name: 'list_blocks',
-            description: 'Get all available shadcn/ui v4 blocks with categorization',
+            description: 'Get all available shadcn-svelte v1 blocks with categorization',
             inputSchema: {
               type: 'object',
               properties: {

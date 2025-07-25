@@ -1,7 +1,7 @@
 {
-  "name": "@jpisnice/shadcn-ui-mcp-server",
+  "name": "shadcn-svelte-mcp-server",
   "version": "1.0.3",
-  "description": "A Model Context Protocol (MCP) server for shadcn/ui components, providing AI assistants with access to component source code, demos, blocks, and metadata.",
+  "description": "A Model Context Protocol (MCP) server for shadcn-svelte components, providing AI assistants with access to component source code, demos, blocks, and metadata.",
   "type": "module",
   "main": "./build/index.js",
   "bin": {
@@ -25,22 +25,22 @@
     "mcp",
     "model-context-protocol",
     "shadcn",
-    "shadcn-ui",
+    "shadcn-svelte",
     "ui-components",
-    "react",
+    "svelte",
     "typescript",
     "ai-tools",
     "claude",
     "copilot"
   ],
-  "author": "Janardhan Pollle <www.janardhanpolle@gmail.com>",
+  "author": "Mudia Geo <mudiageo@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Jpisnice/shadcn-ui-mcp-server.git"
+    "url": "git+https://github.com/mudiageo/shadcn-svelte-mcp-server.git"
   },
   "bugs": {
-    "url": "https://github.com/Jpisnice/shadcn-ui-mcp-server/issues"
+    "url": "https://github.com/mudiageo/shadcn-svelte-mcp-server/issues"
   },
   "engines": {
     "node": ">=18.0.0"

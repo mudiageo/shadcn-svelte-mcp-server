@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * Shadcn UI v4 MCP Server
+ * Shadcn-svelte v1 MCP Server
  * 
- * A Model Context Protocol server for shadcn/ui v4 components.
+ * A Model Context Protocol server for shadcn-svelte v1 components.
  * Provides AI assistants with access to component source code, demos, blocks, and metadata.
  * 
  * Usage:
- *   npx shadcn-ui-mcp-server
- *   npx shadcn-ui-mcp-server --github-api-key YOUR_TOKEN
- *   npx shadcn-ui-mcp-server -g YOUR_TOKEN
+ *   npx shadcn-svelte-mcp-server
+ *   npx shadcn-svelte-mcp-server --github-api-key YOUR_TOKEN
+ *   npx shadcn-svelte-mcp-server -g YOUR_TOKEN
  */
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -31,10 +31,10 @@ async function parseArgs() {
   // Help flag
   if (args.includes('--help') || args.includes('-h')) {
     console.log(`
-Shadcn UI v4 MCP Server
+Shadcn-svelte v1 MCP Server
 
 Usage:
-  npx shadcn-ui-mcp-server [options]
+  npx shadcn-svelte-mcp-server [options]
 
 Options:
   --github-api-key, -g <token>    GitHub Personal Access Token for API access
@@ -42,15 +42,15 @@ Options:
   --version, -v                   Show version information
 
 Examples:
-  npx shadcn-ui-mcp-server
-  npx shadcn-ui-mcp-server --github-api-key ghp_your_token_here
-  npx shadcn-ui-mcp-server -g ghp_your_token_here
+  npx shadcn-svelte-mcp-server
+  npx shadcn-svelte-mcp-server --github-api-key ghp_your_token_here
+  npx shadcn-svelte-mcp-server -g ghp_your_token_here
 
 Environment Variables:
   GITHUB_PERSONAL_ACCESS_TOKEN    Alternative way to provide GitHub token
   LOG_LEVEL                       Log level (debug, info, warn, error) - default: info
 
-For more information, visit: https://github.com/Jpisnice/shadcn-ui-mcp-server
+For more information, visit: https://github.com/Jpisnice/shadcn-svelte-mcp-server
 `);
     process.exit(0);
   }
@@ -69,9 +69,9 @@ For more information, visit: https://github.com/Jpisnice/shadcn-ui-mcp-server
       
       const packageContent = fs.readFileSync(packagePath, 'utf8');
       const packageJson = JSON.parse(packageContent);
-      console.log(`shadcn-ui-mcp-server v${packageJson.version}`);
+      console.log(`shadcn-svelte-mcp-server v${packageJson.version}`);
     } catch (error) {
-      console.log('shadcn-ui-mcp-server v1.0.2');
+      console.log('shadcn-svelte-mcp-server v1.0.2');
     }
     process.exit(0);
   }
@@ -94,7 +94,7 @@ For more information, visit: https://github.com/Jpisnice/shadcn-ui-mcp-server
  */
 async function main() {
   try {
-    logInfo('Starting Shadcn UI v4 MCP Server...');
+    logInfo('Starting Shadcn Svelte v1 MCP Server...');
 
     const { githubApiKey } = await parseArgs();
 
@@ -110,14 +110,14 @@ async function main() {
     // Following MCP SDK 1.16.0 best practices
     const server = new Server(
       {
-        name: "shadcn-ui-mcp-server",
+        name: "shadcn-svelte-mcp-server",
         version: "1.0.2",
       },
       {
         capabilities: {
           resources: {
             "get_components": {
-              description: "List of available shadcn/ui components that can be used in the project",
+              description: "List of available shadcn-svelte components that can be used in the project",
               uri: "resource:get_components",
               contentType: "text/plain"
             }
@@ -175,67 +175,67 @@ async function main() {
           },
           tools: {
             "get_component": {
-              description: "Get the source code for a specific shadcn/ui v4 component",
+              description: "Get the source code for a specific shadcn-svelte v1 component",
               inputSchema: {
                 type: "object",
                 properties: {
                   componentName: {
                     type: "string",
-                    description: "Name of the shadcn/ui component (e.g., \"accordion\", \"button\")"
+                    description: "Name of the shadcn-svelte component (e.g., \"accordion\", \"button\")"
                   }
                 },
                 required: ["componentName"]
               }
             },
             "get_component_demo": {
-              description: "Get demo code illustrating how a shadcn/ui v4 component should be used",
+              description: "Get demo code illustrating how a shadcn-svelte v1 component should be used",
               inputSchema: {
                 type: "object",
                 properties: {
                   componentName: {
                     type: "string",
-                    description: "Name of the shadcn/ui component (e.g., \"accordion\", \"button\")"
+                    description: "Name of the shadcn-svelte component (e.g., \"accordion\", \"button\")"
                   }
                 },
                 required: ["componentName"]
               }
             },
             "list_components": {
-              description: "Get all available shadcn/ui v4 components",
+              description: "Get all available shadcn-svelte v1 components",
               inputSchema: {
                 type: "object",
                 properties: {}
               }
             },
             "get_component_metadata": {
-              description: "Get metadata for a specific shadcn/ui v4 component",
+              description: "Get metadata for a specific shadcn-svelte v1 component",
               inputSchema: {
                 type: "object",
                 properties: {
                   componentName: {
                     type: "string",
-                    description: "Name of the shadcn/ui component (e.g., \"accordion\", \"button\")"
+                    description: "Name of the shadcn-svelte component (e.g., \"accordion\", \"button\")"
                   }
                 },
                 required: ["componentName"]
               }
             },
             "get_directory_structure": {
-              description: "Get the directory structure of the shadcn-ui v4 repository",
+              description: "Get the directory structure of the shadcn-svelte v1 repository",
               inputSchema: {
                 type: "object",
                 properties: {
                   path: {
                     type: "string",
-                    description: "Path within the repository (default: v4 registry)"
+                    description: "Path within the repository (default: v1 registry)"
                   },
                   owner: {
                     type: "string",
-                    description: "Repository owner (default: \"shadcn-ui\")"
+                    description: "Repository owner (default: \"huntabyte\")"
                   },
                   repo: {
                     type: "string",
-                    description: "Repository name (default: \"ui\")"
+                    description: "Repository name (default: \"shadcn-svelte\")"
                   },
                   branch: {
                     type: "string",
@@ -245,7 +245,7 @@ async function main() {
               }
             },
             "get_block": {
-              description: "Get source code for a specific shadcn/ui v4 block (e.g., calendar-01, dashboard-01)",
+              description: "Get source code for a specific shadcn-svelte v1 block (e.g., calendar-01, dashboard-01)",
               inputSchema: {
                 type: "object",
                 properties: {
@@ -262,7 +262,7 @@ async function main() {
               }
             },
             "list_blocks": {
-              description: "Get all available shadcn/ui v4 blocks with categorization",
+              description: "Get all available shadcn-svelte v1 blocks with categorization",
               inputSchema: {
                 type: "object",
                 properties: {

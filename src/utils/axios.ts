@@ -2,8 +2,8 @@ import { Axios } from "axios";
 import { logError, logWarning, logInfo } from './logger.js';
 
 // Constants for the v4 repository structure
-const REPO_OWNER = 'shadcn-ui';
-const REPO_NAME = 'ui';
+const REPO_OWNER = 'huntabyte';
+const REPO_NAME = 'shadcn-svelte';
 const REPO_BRANCH = 'main';
 const V4_BASE_PATH = 'apps/v4';
 const REGISTRY_PATH = `${V4_BASE_PATH}/registry`;
