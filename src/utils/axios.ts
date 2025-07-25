@@ -1,13 +1,16 @@
 import { Axios } from "axios";
 import { logError, logWarning, logInfo } from './logger.js';
 
-// Constants for the v4 repository structure
+// Constants for the shadcn-svelte repository structure
 const REPO_OWNER = 'huntabyte';
 const REPO_NAME = 'shadcn-svelte';
 const REPO_BRANCH = 'main';
-const V4_BASE_PATH = 'apps/v4';
-const REGISTRY_PATH = `${V4_BASE_PATH}/registry`;
-const NEW_YORK_V4_PATH = `${REGISTRY_PATH}/new-york-v4`;
+const DOCS_BASE_PATH = 'docs/src/lib/registry';
+const REGISTRY_UI_PATH = `${DOCS_BASE_PATH}/ui`;
+const REGISTRY_EXAMPLES_PATH = `${DOCS_BASE_PATH}/examples`;
+const REGISTRY_BLOCKS_PATH = `${DOCS_BASE_PATH}/blocks`;
+const REGISTRY_HOOKS_PATH = `${DOCS_BASE_PATH}/hooks`;
+const REGISTRY_LIB_PATH = `${DOCS_BASE_PATH}/lib`;
 
 // GitHub API for accessing repository structure and metadata
 const githubApi = new Axios({
@@ -15,12 +18,12 @@ const githubApi = new Axios({
     headers: {
         "Content-Type": "application/json",
         "Accept": "application/vnd.github+json",
-        "User-Agent": "Mozilla/5.0 (compatible; ShadcnUiMcpServer/1.0.0)",
+        "User-Agent": "Mozilla/5.0 (compatible; ShadcnSvelteMcpServer/1.0.0)",
         ...(process.env.GITHUB_PERSONAL_ACCESS_TOKEN && {
             "Authorization": `Bearer ${process.env.GITHUB_PERSONAL_ACCESS_TOKEN}`
         })
     },
-    timeout: 30000, // Increased from 15000 to 30000 (30 seconds)
+    timeout: 30000,
     transformResponse: [(data) => {
         try {
             return JSON.parse(data);
@@ -34,41 +37,109 @@ const githubApi = new Axios({
 const githubRaw = new Axios({
     baseURL: `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${REPO_BRANCH}`,
     headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; ShadcnUiMcpServer/1.0.0)",
+        "User-Agent": "Mozilla/5.0 (compatible; ShadcnSvelteMcpServer/1.0.0)",
     },
-    timeout: 30000, // Increased from 15000 to 30000 (30 seconds)
+    timeout: 30000,
     transformResponse: [(data) => data], // Return raw data
 });
 
 /**
- * Fetch component source code from the v4 registry
+ * Fetch component source code from the shadcn-svelte registry
  * @param componentName Name of the component
- * @returns Promise with component source code
+ * @returns Promise with component source code and structure
  */
-async function getComponentSource(componentName: string): Promise<string> {
-    const componentPath = `${NEW_YORK_V4_PATH}/ui/${componentName.toLowerCase()}.tsx`;
-    
+async function getComponentSource(componentName: string): Promise<any> {
     try {
-        const response = await githubRaw.get(`/${componentPath}`);
-        return response.data;
-    } catch (error) {
-        throw new Error(`Component "${componentName}" not found in v4 registry`);
+        const componentPath = `${REGISTRY_UI_PATH}/${componentName.toLowerCase()}`;
+        const response = await githubApi.get(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${componentPath}?ref=${REPO_BRANCH}`);
+        
+        if (!response.data) {
+            throw new Error(`Component "${componentName}" not found`);
+        }
+
+        const componentStructure: any = {
+            name: componentName,
+            type: 'svelte-component',
+            files: {},
+            structure: [],
+            totalFiles: 0,
+            dependencies: new Set(),
+            imports: new Set()
+        };
+
+        if (Array.isArray(response.data)) {
+            componentStructure.totalFiles = response.data.length;
+            
+            for (const item of response.data) {
+                if (item.type === 'file' && (item.name.endsWith('.svelte') || item.name.endsWith('.ts'))) {
+                    const fileResponse = await githubRaw.get(`/${item.path}`);
+                    const content = fileResponse.data;
+                    
+                    const dependencies = extractDependencies(content);
+                    const imports = extractImports(content);
+                    
+                    componentStructure.files[item.name] = {
+                        path: item.name,
+                        content: content,
+                        size: content.length,
+                        lines: content.split('\n').length,
+                        dependencies: dependencies,
+                        imports: imports
+                    };
+                    
+                    dependencies.forEach((dep: string) => componentStructure.dependencies.add(dep));
+                    imports.forEach((imp: string) => componentStructure.imports.add(imp));
+                    
+                    componentStructure.structure.push({
+                        name: item.name,
+                        type: 'file',
+                        size: content.length,
+                        fileType: item.name.endsWith('.svelte') ? 'svelte' : 'typescript'
+                    });
+                }
+            }
+        }
+        
+        componentStructure.dependencies = Array.from(componentStructure.dependencies);
+        componentStructure.imports = Array.from(componentStructure.imports);
+        
+        return componentStructure;
+        
+    } catch (error: any) {
+        if (error.response?.status === 404) {
+            throw new Error(`Component "${componentName}" not found in shadcn-svelte registry`);
+        }
+        throw error;
     }
 }
 
 /**
- * Fetch component demo/example from the v4 registry
+ * Fetch component demo/example from the shadcn-svelte registry
  * @param componentName Name of the component
  * @returns Promise with component demo code
  */
 async function getComponentDemo(componentName: string): Promise<string> {
-    const demoPath = `${NEW_YORK_V4_PATH}/examples/${componentName.toLowerCase()}-demo.tsx`;
-    
     try {
-        const response = await githubRaw.get(`/${demoPath}`);
-        return response.data;
+        const demoPatterns = [
+            `${REGISTRY_EXAMPLES_PATH}/${componentName.toLowerCase()}-demo.svelte`,
+            `${REGISTRY_EXAMPLES_PATH}/${componentName.toLowerCase()}.svelte`,
+            `${REGISTRY_EXAMPLES_PATH}/${componentName.toLowerCase()}-01.svelte`
+        ];
+        
+        for (const demoPath of demoPatterns) {
+            try {
+                const response = await githubRaw.get(`/${demoPath}`);
+                if (response.status === 200) {
+                    return response.data;
+                }
+            } catch (error) {
+                // Continue to next pattern
+            }
+        }
+        
+        throw new Error(`Demo not found`);
     } catch (error) {
-        throw new Error(`Demo for component "${componentName}" not found in v4 registry`);
+        throw new Error(`Demo for component "${componentName}" not found in shadcn-svelte registry`);
     }
 }
 
@@ -78,26 +149,24 @@ async function getComponentDemo(componentName: string): Promise<string> {
  */
 async function getAvailableComponents(): Promise<string[]> {
     try {
-        // First try the GitHub API
-        const response = await githubApi.get(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${NEW_YORK_V4_PATH}/ui`);
+        const response = await githubApi.get(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${REGISTRY_UI_PATH}?ref=${REPO_BRANCH}`);
         
         if (!response.data || !Array.isArray(response.data)) {
             throw new Error('Invalid response from GitHub API');
         }
         
         const components = response.data
-            .filter((item: any) => item.type === 'file' && item.name.endsWith('.tsx'))
-            .map((item: any) => item.name.replace('.tsx', ''));
+            .filter((item: any) => item.type === 'dir')
+            .map((item: any) => item.name);
             
         if (components.length === 0) {
             throw new Error('No components found in the registry');
         }
         
-        return components;
+        return components.sort();
     } catch (error: any) {
         logError('Error fetching components from GitHub API', error);
         
-        // Check for specific error types
         if (error.response) {
             const status = error.response.status;
             const message = error.response.data?.message || 'Unknown error';
@@ -105,7 +174,7 @@ async function getAvailableComponents(): Promise<string[]> {
             if (status === 403 && message.includes('rate limit')) {
                 throw new Error(`GitHub API rate limit exceeded. Please set GITHUB_PERSONAL_ACCESS_TOKEN environment variable for higher limits. Error: ${message}`);
             } else if (status === 404) {
-                throw new Error(`Components directory not found. The path ${NEW_YORK_V4_PATH}/ui may not exist in the repository.`);
+                throw new Error(`Components directory not found. The path ${REGISTRY_UI_PATH} may not exist in the repository.`);
             } else if (status === 401) {
                 throw new Error(`Authentication failed. Please check your GITHUB_PERSONAL_ACCESS_TOKEN if provided.`);
             } else {
@@ -113,20 +182,17 @@ async function getAvailableComponents(): Promise<string[]> {
             }
         }
         
-        // If it's a network error or other issue, provide a fallback
         if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
             throw new Error(`Network error: ${error.message}. Please check your internet connection.`);
         }
         
-        // If all else fails, provide a fallback list of known components
         logWarning('Using fallback component list due to API issues');
         return getFallbackComponents();
     }
 }
 
 /**
- * Fallback list of known shadcn/ui v4 components
- * This is used when the GitHub API is unavailable
+ * Fallback list of known shadcn-svelte components
  */
 function getFallbackComponents(): string[] {
     return [
@@ -141,7 +207,6 @@ function getFallbackComponents(): string[] {
         'calendar',
         'card',
         'carousel',
-        'chart',
         'checkbox',
         'collapsible',
         'command',
@@ -165,7 +230,6 @@ function getFallbackComponents(): string[] {
         'select',
         'separator',
         'sheet',
-        'sidebar',
         'skeleton',
         'slider',
         'sonner',
@@ -186,35 +250,30 @@ function getFallbackComponents(): string[] {
  */
 async function getComponentMetadata(componentName: string): Promise<any> {
     try {
-        const response = await githubRaw.get(`/${REGISTRY_PATH}/registry-ui.ts`);
-        const registryContent = response.data;
+        // Try to get meta.json file from component directory
+        const metaPath = `${REGISTRY_UI_PATH}/${componentName.toLowerCase()}/meta.json`;
         
-        // Parse component metadata using a more robust approach
-        const componentRegex = new RegExp(`{[^}]*name:\\s*["']${componentName}["'][^}]*}`, 'gs');
-        const match = registryContent.match(componentRegex);
-        
-        if (!match) {
-            return null;
+        try {
+            const response = await githubRaw.get(`/${metaPath}`);
+            const metaData = JSON.parse(response.data);
+            return {
+                ...metaData,
+                name: componentName,
+                type: 'registry:ui',
+                framework: 'svelte',
+                source: 'shadcn-svelte'
+            };
+        } catch (error) {
+            // If no meta.json, return basic metadata
+            return {
+                name: componentName,
+                type: 'registry:ui',
+                framework: 'svelte',
+                dependencies: [],
+                registryDependencies: [],
+                source: 'shadcn-svelte'
+            };
         }
-        
-        const componentData = match[0];
-        
-        // Extract metadata
-        const nameMatch = componentData.match(/name:\s*["']([^"']+)["']/);
-        const typeMatch = componentData.match(/type:\s*["']([^"']+)["']/);
-        const dependenciesMatch = componentData.match(/dependencies:\s*\[([^\]]*)\]/s);
-        const registryDepsMatch = componentData.match(/registryDependencies:\s*\[([^\]]*)\]/s);
-        
-        return {
-            name: nameMatch?.[1] || componentName,
-            type: typeMatch?.[1] || 'registry:ui',
-            dependencies: dependenciesMatch?.[1] 
-                ? dependenciesMatch[1].split(',').map((dep: string) => dep.trim().replace(/["']/g, ''))
-                : [],
-            registryDependencies: registryDepsMatch?.[1]
-                ? registryDepsMatch[1].split(',').map((dep: string) => dep.trim().replace(/["']/g, ''))
-                : [],
-        };
     } catch (error) {
         logError(`Error getting metadata for ${componentName}`, error);
         return null;
@@ -222,17 +281,272 @@ async function getComponentMetadata(componentName: string): Promise<any> {
 }
 
 /**
- * Recursively builds a directory tree structure from a GitHub repository
- * @param owner Repository owner
- * @param repo Repository name  
- * @param path Path within the repository to start building the tree from
- * @param branch Branch name
- * @returns Promise resolving to the directory tree structure
+ * Fetch block code from the shadcn-svelte blocks directory
+ * @param blockName Name of the block (e.g., "calendar-01", "dashboard-01")
+ * @param includeComponents Whether to include component files for complex blocks
+ * @returns Promise with block code and structure
+ */
+async function getBlockCode(blockName: string, includeComponents: boolean = true): Promise<any> {
+    try {
+        // First, check if it's a simple block file (.svelte)
+        try {
+            const simpleBlockResponse = await githubRaw.get(`/${REGISTRY_BLOCKS_PATH}/${blockName}.svelte`);
+            if (simpleBlockResponse.status === 200) {
+                const code = simpleBlockResponse.data;
+                
+                const description = extractBlockDescription(code);
+                const dependencies = extractDependencies(code);
+                const components = extractComponentUsage(code);
+                
+                return {
+                    name: blockName,
+                    type: 'simple',
+                    description: description || `Simple block: ${blockName}`,
+                    code: code,
+                    dependencies: dependencies,
+                    componentsUsed: components,
+                    size: code.length,
+                    lines: code.split('\n').length,
+                    usage: `Import and use directly in your application:\n\nimport ${blockName.charAt(0).toUpperCase() + blockName.slice(1).replace(/-/g, '')} from './blocks/${blockName}.svelte'`
+                };
+            }
+        } catch (error) {
+            // Continue to check for complex block directory
+        }
+        
+        // Check if it's a complex block directory
+        const directoryResponse = await githubApi.get(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${REGISTRY_BLOCKS_PATH}/${blockName}?ref=${REPO_BRANCH}`);
+        
+        if (!directoryResponse.data) {
+            throw new Error(`Block "${blockName}" not found`);
+        }
+        
+        const blockStructure: any = {
+            name: blockName,
+            type: 'complex',
+            description: `Complex block: ${blockName}`,
+            files: {},
+            structure: [],
+            totalFiles: 0,
+            dependencies: new Set(),
+            componentsUsed: new Set()
+        };
+        
+        if (Array.isArray(directoryResponse.data)) {
+            blockStructure.totalFiles = directoryResponse.data.length;
+            
+            for (const item of directoryResponse.data) {
+                if (item.type === 'file') {
+                    const fileResponse = await githubRaw.get(`/${item.path}`);
+                    const content = fileResponse.data;
+                    
+                    const description = extractBlockDescription(content);
+                    const dependencies = extractDependencies(content);
+                    const components = extractComponentUsage(content);
+                    
+                    blockStructure.files[item.name] = {
+                        path: item.name,
+                        content: content,
+                        size: content.length,
+                        lines: content.split('\n').length,
+                        description: description,
+                        dependencies: dependencies,
+                        componentsUsed: components
+                    };
+                    
+                    dependencies.forEach((dep: string) => blockStructure.dependencies.add(dep));
+                    components.forEach((comp: string) => blockStructure.componentsUsed.add(comp));
+                    
+                    blockStructure.structure.push({
+                        name: item.name,
+                        type: 'file',
+                        size: content.length,
+                        description: description || `${item.name} - Block file`
+                    });
+                    
+                    if (description && blockStructure.description === `Complex block: ${blockName}`) {
+                        blockStructure.description = description;
+                    }
+                } else if (item.type === 'dir' && includeComponents) {
+                    // Handle subdirectories (like components)
+                    const subDirResponse = await githubApi.get(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${item.path}?ref=${REPO_BRANCH}`);
+                    
+                    if (Array.isArray(subDirResponse.data)) {
+                        blockStructure.files[item.name] = {};
+                        const subDirStructure: any[] = [];
+                        
+                        for (const subItem of subDirResponse.data) {
+                            if (subItem.type === 'file') {
+                                const subFileResponse = await githubRaw.get(`/${subItem.path}`);
+                                const content = subFileResponse.data;
+                                
+                                const dependencies = extractDependencies(content);
+                                const components = extractComponentUsage(content);
+                                
+                                blockStructure.files[item.name][subItem.name] = {
+                                    path: `${item.name}/${subItem.name}`,
+                                    content: content,
+                                    size: content.length,
+                                    lines: content.split('\n').length,
+                                    dependencies: dependencies,
+                                    componentsUsed: components
+                                };
+                                
+                                dependencies.forEach((dep: string) => blockStructure.dependencies.add(dep));
+                                components.forEach((comp: string) => blockStructure.componentsUsed.add(comp));
+                                
+                                subDirStructure.push({
+                                    name: subItem.name,
+                                    type: 'file',
+                                    size: content.length
+                                });
+                            }
+                        }
+                        
+                        blockStructure.structure.push({
+                            name: item.name,
+                            type: 'directory',
+                            files: subDirStructure,
+                            count: subDirStructure.length
+                        });
+                    }
+                }
+            }
+        }
+        
+        blockStructure.dependencies = Array.from(blockStructure.dependencies);
+        blockStructure.componentsUsed = Array.from(blockStructure.componentsUsed);
+        
+        blockStructure.usage = generateComplexBlockUsage(blockName, blockStructure.structure);
+        
+        return blockStructure;
+        
+    } catch (error: any) {
+        if (error.response?.status === 404) {
+            throw new Error(`Block "${blockName}" not found. Available blocks can be found in the shadcn-svelte blocks directory.`);
+        }
+        throw error;
+    }
+}
+
+/**
+ * Get all available blocks with categorization
+ * @param category Optional category filter
+ * @returns Promise with categorized block list
+ */
+async function getAvailableBlocks(category?: string): Promise<any> {
+    try {
+        const response = await githubApi.get(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${REGISTRY_BLOCKS_PATH}?ref=${REPO_BRANCH}`);
+        
+        if (!Array.isArray(response.data)) {
+            throw new Error('Unexpected response from GitHub API');
+        }
+        
+        const blocks: any = {
+            calendar: [],
+            dashboard: [],
+            login: [],
+            sidebar: [],
+            authentication: [],
+            charts: [],
+            other: []
+        };
+        
+        for (const item of response.data) {
+            const blockInfo: any = {
+                name: item.name.replace('.svelte', ''),
+                type: item.type === 'file' ? 'simple' : 'complex',
+                path: item.path,
+                size: item.size || 0,
+                lastModified: item.download_url ? 'Available' : 'Directory'
+            };
+            
+            // Categorize blocks based on name patterns
+            if (item.name.includes('calendar')) {
+                blockInfo.description = 'Calendar component for date selection and scheduling';
+                blocks.calendar.push(blockInfo);
+            } else if (item.name.includes('dashboard')) {
+                blockInfo.description = 'Dashboard layout with charts, metrics, and data display';
+                blocks.dashboard.push(blockInfo);
+            } else if (item.name.includes('login') || item.name.includes('signin')) {
+                blockInfo.description = 'Authentication and login interface';
+                blocks.login.push(blockInfo);
+            } else if (item.name.includes('sidebar')) {
+                blockInfo.description = 'Navigation sidebar component';
+                blocks.sidebar.push(blockInfo);
+            } else if (item.name.includes('auth')) {
+                blockInfo.description = 'Authentication related components';
+                blocks.authentication.push(blockInfo);
+            } else if (item.name.includes('chart') || item.name.includes('graph')) {
+                blockInfo.description = 'Data visualization and chart components';
+                blocks.charts.push(blockInfo);
+            } else {
+                blockInfo.description = `${item.name} - Custom UI block`;
+                blocks.other.push(blockInfo);
+            }
+        }
+        
+        // Sort blocks within each category
+        Object.keys(blocks).forEach(key => {
+            blocks[key].sort((a: any, b: any) => a.name.localeCompare(b.name));
+        });
+        
+        // Filter by category if specified
+        if (category) {
+            const categoryLower = category.toLowerCase();
+            if (blocks[categoryLower]) {
+                return {
+                    category,
+                    blocks: blocks[categoryLower],
+                    total: blocks[categoryLower].length,
+                    description: `${category.charAt(0).toUpperCase() + category.slice(1)} blocks available in shadcn-svelte`,
+                    usage: `Use 'getBlockCode' function with the block name to get the full source code and implementation details.`
+                };
+            } else {
+                return {
+                    category,
+                    blocks: [],
+                    total: 0,
+                    availableCategories: Object.keys(blocks).filter(key => blocks[key].length > 0),
+                    suggestion: `Category '${category}' not found. Available categories: ${Object.keys(blocks).filter(key => blocks[key].length > 0).join(', ')}`
+                };
+            }
+        }
+        
+        const totalBlocks = Object.values(blocks).flat().length;
+        const nonEmptyCategories = Object.keys(blocks).filter(key => blocks[key].length > 0);
+        
+        return {
+            categories: blocks,
+            totalBlocks,
+            availableCategories: nonEmptyCategories,
+            summary: Object.keys(blocks).reduce((acc: any, key) => {
+                if (blocks[key].length > 0) {
+                    acc[key] = blocks[key].length;
+                }
+                return acc;
+            }, {}),
+            usage: "Use 'getBlockCode' function with a specific block name to get full source code and implementation details.",
+            examples: nonEmptyCategories.slice(0, 3).map(cat => 
+                blocks[cat][0] ? `${cat}: ${blocks[cat][0].name}` : ''
+            ).filter(Boolean)
+        };
+        
+    } catch (error: any) {
+        if (error.response?.status === 404) {
+            throw new Error('Blocks directory not found in the shadcn-svelte registry');
+        }
+        throw error;
+    }
+}
+
+/**
+ * Build directory tree for shadcn-svelte repository
  */
 async function buildDirectoryTree(
     owner: string = REPO_OWNER,
     repo: string = REPO_NAME,
-    path: string = NEW_YORK_V4_PATH,
+    path: string = DOCS_BASE_PATH,
     branch: string = REPO_BRANCH
 ): Promise<any> {
     try {
@@ -244,21 +558,18 @@ async function buildDirectoryTree(
 
         const contents = response.data;
         
-        // Handle different response types from GitHub API
         if (!Array.isArray(contents)) {
-                    // Check if it's an error response (like rate limit)
-        if (contents.message) {
-            const message: string = contents.message;
-            if (message.includes('rate limit exceeded')) {
-                throw new Error(`GitHub API rate limit exceeded. ${message} Consider setting GITHUB_PERSONAL_ACCESS_TOKEN environment variable for higher rate limits.`);
-            } else if (message.includes('Not Found')) {
-                throw new Error(`Path not found: ${path}. The path may not exist in the repository.`);
-            } else {
-                throw new Error(`GitHub API error: ${message}`);
+            if (contents.message) {
+                const message: string = contents.message;
+                if (message.includes('rate limit exceeded')) {
+                    throw new Error(`GitHub API rate limit exceeded. ${message} Consider setting GITHUB_PERSONAL_ACCESS_TOKEN environment variable for higher rate limits.`);
+                } else if (message.includes('Not Found')) {
+                    throw new Error(`Path not found: ${path}. The path may not exist in the repository.`);
+                } else {
+                    throw new Error(`GitHub API error: ${message}`);
+                }
             }
-        }
             
-            // If contents is not an array, it might be a single file
             if (contents.type === 'file') {
                 return {
                     path: contents.path,
@@ -272,17 +583,14 @@ async function buildDirectoryTree(
             }
         }
         
-        // Build tree node for this level (directory with multiple items)
         const result: Record<string, any> = {
             path,
             type: 'directory',
             children: {},
         };
 
-        // Process each item
         for (const item of contents) {
             if (item.type === 'file') {
-                // Add file to this directory's children
                 result.children[item.name] = {
                     path: item.path,
                     type: 'file',
@@ -291,7 +599,6 @@ async function buildDirectoryTree(
                     sha: item.sha,
                 };
             } else if (item.type === 'dir') {
-                // Recursively process subdirectory (limit depth to avoid infinite recursion)
                 if (path.split('/').length < 8) {
                     try {
                         const subTree = await buildDirectoryTree(owner, repo, item.path, branch);
@@ -312,12 +619,10 @@ async function buildDirectoryTree(
     } catch (error: any) {
         logError(`Error building directory tree for ${path}`, error);
         
-        // Check if it's already a well-formatted error from above
         if (error.message && (error.message.includes('rate limit') || error.message.includes('GitHub API error'))) {
             throw error;
         }
         
-        // Provide more specific error messages for HTTP errors
         if (error.response) {
             const status: number = error.response.status;
             const responseData: any = error.response.data;
@@ -343,39 +648,53 @@ async function buildDirectoryTree(
 }
 
 /**
- * Provides a basic directory structure for v4 registry without API calls
- * This is used as a fallback when API rate limits are hit
+ * Extract dependencies from import statements (updated for Svelte)
+ * @param code The source code to analyze
+ * @returns Array of dependency names
  */
-function getBasicV4Structure(): any {
-    return {
-        path: NEW_YORK_V4_PATH,
-        type: 'directory',
-        note: 'Basic structure provided due to API limitations',
-        children: {
-            'ui': {
-                path: `${NEW_YORK_V4_PATH}/ui`,
-                type: 'directory',
-                description: 'Contains all v4 UI components',
-                note: 'Component files (.tsx) are located here'
-            },
-            'examples': {
-                path: `${NEW_YORK_V4_PATH}/examples`,
-                type: 'directory', 
-                description: 'Contains component demo examples',
-                note: 'Demo files showing component usage'
-            },
-            'hooks': {
-                path: `${NEW_YORK_V4_PATH}/hooks`,
-                type: 'directory',
-                description: 'Contains custom React hooks'
-            },
-            'lib': {
-                path: `${NEW_YORK_V4_PATH}/lib`,
-                type: 'directory',
-                description: 'Contains utility libraries and functions'
+function extractDependencies(code: string): string[] {
+    const dependencies: string[] = [];
+    
+    const importRegex = /import\s+.*?\s+from\s+['"]([@\w\/\-\.]+)['"]/g;
+    let match: RegExpExecArray | null;
+    
+    while ((match = importRegex.exec(code)) !== null) {
+        const dep: string = match[1];
+        if (!dep.startsWith('./') && !dep.startsWith('../') && !dep.startsWith('$') && !dep.startsWith('/')) {
+            dependencies.push(dep);
+        }
+    }
+    
+    return [...new Set(dependencies)];
+}
+
+/**
+ * Extract imports from import statements (Svelte specific)
+ * @param code The source code to analyze
+ * @returns Array of imported items
+ */
+function extractImports(code: string): string[] {
+    const imports: string[] = [];
+    
+    const patterns = [
+        /import\s+\{([^}]+)\}\s+from/g,  // Named imports
+        /import\s+(\w+)\s+from/g,        // Default imports
+        /import\s+\*\s+as\s+(\w+)\s+from/g // Namespace imports
+    ];
+    
+    patterns.forEach(pattern => {
+        let match: RegExpExecArray | null;
+        while ((match = pattern.exec(code)) !== null) {
+            if (match[1].includes(',')) {
+                const namedImports = match[1].split(',').map(imp => imp.trim());
+                imports.push(...namedImports);
+            } else {
+                imports.push(match[1].trim());
             }
         }
-    };
+    });
+    
+    return [...new Set(imports)];
 }
 
 /**
@@ -384,51 +703,18 @@ function getBasicV4Structure(): any {
  * @returns Extracted description or null
  */
 function extractBlockDescription(code: string): string | null {
-    // Look for JSDoc comments or description comments
-    const descriptionRegex = /\/\*\*[\s\S]*?\*\/|\/\/\s*(.+)/;
+    const descriptionRegex = /\/\*\*[\s\S]*?\*\/|\/\/\s*(.+)|<!--\s*(.+?)\s*-->/;
     const match = code.match(descriptionRegex);
     if (match) {
-        // Clean up the comment
         const description = match[0]
-            .replace(/\/\*\*|\*\/|\*|\/\//g, '')
+            .replace(/\/\*\*|\*\/|\*|\/\/|<!--|-->/g, '')
             .trim()
             .split('\n')[0]
             .trim();
         return description.length > 0 ? description : null;
     }
     
-    // Look for component name as fallback
-    const componentRegex = /export\s+(?:default\s+)?function\s+(\w+)/;
-    const componentMatch = code.match(componentRegex);
-    if (componentMatch) {
-        return `${componentMatch[1]} - A reusable UI component`;
-    }
-    
     return null;
-}
-
-/**
- * Extract dependencies from import statements
- * @param code The source code to analyze
- * @returns Array of dependency names
- */
-function extractDependencies(code: string): string[] {
-    const dependencies: string[] = [];
-    
-    // Match import statements
-    const importRegex = /import\s+.*?\s+from\s+['"]([@\w\/\-\.]+)['"]/g;
-    let match: RegExpExecArray | null;
-    
-    match = importRegex.exec(code);
-    while (match !== null) {
-        const dep: string = match[1];
-        if (!dep.startsWith('./') && !dep.startsWith('../') && !dep.startsWith('@/')) {
-            dependencies.push(dep);
-        }
-        match = importRegex.exec(code);
-    }
-    
-    return [...new Set(dependencies)]; // Remove duplicates
 }
 
 /**
@@ -439,30 +725,25 @@ function extractDependencies(code: string): string[] {
 function extractComponentUsage(code: string): string[] {
     const components: string[] = [];
     
-    // Extract from imports of components (assuming they start with capital letters)
     const importRegex = /import\s+\{([^}]+)\}\s+from/g;
     let match: RegExpExecArray | null;
     
-    match = importRegex.exec(code);
-    while (match !== null) {
+    while ((match = importRegex.exec(code)) !== null) {
         const imports = match[1].split(',').map(imp => imp.trim());
         imports.forEach(imp => {
             if (imp[0] && imp[0] === imp[0].toUpperCase()) {
                 components.push(imp);
             }
         });
-        match = importRegex.exec(code);
     }
     
-    // Also look for JSX components in the code
-    const jsxRegex = /<([A-Z]\w+)/g;
-    match = jsxRegex.exec(code);
-    while (match !== null) {
+    // Look for Svelte component usage
+    const svelteComponentRegex = /<([A-Z][a-zA-Z0-9]*)/g;
+    while ((match = svelteComponentRegex.exec(code)) !== null) {
         components.push(match[1]);
-        match = jsxRegex.exec(code);
     }
     
-    return [...new Set(components)]; // Remove duplicates
+    return [...new Set(components)];
 }
 
 /**
@@ -503,306 +784,61 @@ function generateComplexBlockUsage(blockName: string, structure: any[]): string 
 async function buildDirectoryTreeWithFallback(
     owner: string = REPO_OWNER,
     repo: string = REPO_NAME,
-    path: string = NEW_YORK_V4_PATH,
+    path: string = DOCS_BASE_PATH,
     branch: string = REPO_BRANCH
 ): Promise<any> {
     try {
         return await buildDirectoryTree(owner, repo, path, branch);
     } catch (error: any) {
-        // If it's a rate limit error and we're asking for the default v4 path, provide fallback
-        if (error.message && error.message.includes('rate limit') && path === NEW_YORK_V4_PATH) {
-                    logWarning('Using fallback directory structure due to rate limit');
-        return getBasicV4Structure();
-        }
-        // Re-throw other errors
-        throw error;
-    }
-}
-
-/**
- * Fetch block code from the v4 blocks directory
- * @param blockName Name of the block (e.g., "calendar-01", "dashboard-01")
- * @param includeComponents Whether to include component files for complex blocks
- * @returns Promise with block code and structure
- */
-async function getBlockCode(blockName: string, includeComponents: boolean = true): Promise<any> {
-    const blocksPath = `${NEW_YORK_V4_PATH}/blocks`;
-    
-    try {
-        // First, check if it's a simple block file (.tsx)
-        try {
-            const simpleBlockResponse = await githubRaw.get(`/${blocksPath}/${blockName}.tsx`);
-            if (simpleBlockResponse.status === 200) {
-                const code = simpleBlockResponse.data;
-                
-                // Extract useful information from the code
-                const description = extractBlockDescription(code);
-                const dependencies = extractDependencies(code);
-                const components = extractComponentUsage(code);
-                
-                return {
-                    name: blockName,
-                    type: 'simple',
-                    description: description || `Simple block: ${blockName}`,
-                    code: code,
-                    dependencies: dependencies,
-                    componentsUsed: components,
-                    size: code.length,
-                    lines: code.split('\n').length,
-                    usage: `Import and use directly in your application:\n\nimport { ${blockName.charAt(0).toUpperCase() + blockName.slice(1).replace(/-/g, '')} } from './blocks/${blockName}'`
-                };
-            }
-        } catch (error) {
-            // Continue to check for complex block directory
-        }
-        
-        // Check if it's a complex block directory
-        const directoryResponse = await githubApi.get(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${blocksPath}/${blockName}?ref=${REPO_BRANCH}`);
-        
-        if (!directoryResponse.data) {
-            throw new Error(`Block "${blockName}" not found`);
-        }
-        
-        const blockStructure: any = {
-            name: blockName,
-            type: 'complex',
-            description: `Complex block: ${blockName}`,
-            files: {},
-            structure: [],
-            totalFiles: 0,
-            dependencies: new Set(),
-            componentsUsed: new Set()
-        };
-        
-        // Process the directory contents
-        if (Array.isArray(directoryResponse.data)) {
-            blockStructure.totalFiles = directoryResponse.data.length;
-            
-            for (const item of directoryResponse.data) {
-                if (item.type === 'file') {
-                    // Get the main page file
-                    const fileResponse = await githubRaw.get(`/${item.path}`);
-                    const content = fileResponse.data;
-                    
-                    // Extract information from the file
-                    const description = extractBlockDescription(content);
-                    const dependencies = extractDependencies(content);
-                    const components = extractComponentUsage(content);
-                    
-                    blockStructure.files[item.name] = {
-                        path: item.name,
-                        content: content,
-                        size: content.length,
-                        lines: content.split('\n').length,
-                        description: description,
-                        dependencies: dependencies,
-                        componentsUsed: components
-                    };
-                    
-                    // Add to overall dependencies and components
-                    dependencies.forEach((dep: string) => blockStructure.dependencies.add(dep));
-                    components.forEach((comp: string) => blockStructure.componentsUsed.add(comp));
-                    
-                    blockStructure.structure.push({
-                        name: item.name,
-                        type: 'file',
-                        size: content.length,
-                        description: description || `${item.name} - Main block file`
-                    });
-                    
-                    // Use the first file's description as the block description if available
-                    if (description && blockStructure.description === `Complex block: ${blockName}`) {
-                        blockStructure.description = description;
-                    }
-                } else if (item.type === 'dir' && item.name === 'components' && includeComponents) {
-                    // Get component files
-                    const componentsResponse = await githubApi.get(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${item.path}?ref=${REPO_BRANCH}`);
-                    
-                    if (Array.isArray(componentsResponse.data)) {
-                        blockStructure.files.components = {};
-                        const componentStructure: any[] = [];
-                        
-                        for (const componentItem of componentsResponse.data) {
-                            if (componentItem.type === 'file') {
-                                const componentResponse = await githubRaw.get(`/${componentItem.path}`);
-                                const content = componentResponse.data;
-                                
-                                const dependencies = extractDependencies(content);
-                                const components = extractComponentUsage(content);
-                                
-                                blockStructure.files.components[componentItem.name] = {
-                                    path: `components/${componentItem.name}`,
-                                    content: content,
-                                    size: content.length,
-                                    lines: content.split('\n').length,
-                                    dependencies: dependencies,
-                                    componentsUsed: components
-                                };
-                                
-                                // Add to overall dependencies and components
-                                dependencies.forEach((dep: string) => blockStructure.dependencies.add(dep));
-                                components.forEach((comp: string) => blockStructure.componentsUsed.add(comp));
-                                
-                                componentStructure.push({
-                                    name: componentItem.name,
-                                    type: 'component',
-                                    size: content.length
-                                });
-                            }
-                        }
-                        
-                        blockStructure.structure.push({
-                            name: 'components',
-                            type: 'directory',
-                            files: componentStructure,
-                            count: componentStructure.length
-                        });
-                    }
-                }
-            }
-        }
-        
-        // Convert Sets to Arrays for JSON serialization
-        blockStructure.dependencies = Array.from(blockStructure.dependencies);
-        blockStructure.componentsUsed = Array.from(blockStructure.componentsUsed);
-        
-        // Add usage instructions
-        blockStructure.usage = generateComplexBlockUsage(blockName, blockStructure.structure);
-        
-        return blockStructure;
-        
-    } catch (error: any) {
-        if (error.response?.status === 404) {
-            throw new Error(`Block "${blockName}" not found. Available blocks can be found in the v4 blocks directory.`);
+        if (error.message && error.message.includes('rate limit') && path === DOCS_BASE_PATH) {
+            logWarning('Using fallback directory structure due to rate limit');
+            return getBasicSvelteStructure();
         }
         throw error;
     }
 }
 
 /**
- * Get all available blocks with categorization
- * @param category Optional category filter
- * @returns Promise with categorized block list
+ * Provides a basic directory structure for shadcn-svelte registry
  */
-async function getAvailableBlocks(category?: string): Promise<any> {
-    const blocksPath = `${NEW_YORK_V4_PATH}/blocks`;
-    
-    try {
-        const response = await githubApi.get(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/${blocksPath}?ref=${REPO_BRANCH}`);
-        
-        if (!Array.isArray(response.data)) {
-            throw new Error('Unexpected response from GitHub API');
-        }
-        
-        const blocks: any = {
-            calendar: [],
-            dashboard: [],
-            login: [],
-            sidebar: [],
-            products: [],
-            authentication: [],
-            charts: [],
-            mail: [],
-            music: [],
-            other: []
-        };
-        
-        for (const item of response.data) {
-            const blockInfo: any = {
-                name: item.name.replace('.tsx', ''),
-                type: item.type === 'file' ? 'simple' : 'complex',
-                path: item.path,
-                size: item.size || 0,
-                lastModified: item.download_url ? 'Available' : 'Directory'
-            };
-            
-            // Add description based on name patterns
-            if (item.name.includes('calendar')) {
-                blockInfo.description = 'Calendar component for date selection and scheduling';
-                blocks.calendar.push(blockInfo);
-            } else if (item.name.includes('dashboard')) {
-                blockInfo.description = 'Dashboard layout with charts, metrics, and data display';
-                blocks.dashboard.push(blockInfo);
-            } else if (item.name.includes('login') || item.name.includes('signin')) {
-                blockInfo.description = 'Authentication and login interface';
-                blocks.login.push(blockInfo);
-            } else if (item.name.includes('sidebar')) {
-                blockInfo.description = 'Navigation sidebar component';
-                blocks.sidebar.push(blockInfo);
-            } else if (item.name.includes('products') || item.name.includes('ecommerce')) {
-                blockInfo.description = 'Product listing and e-commerce components';
-                blocks.products.push(blockInfo);
-            } else if (item.name.includes('auth')) {
-                blockInfo.description = 'Authentication related components';
-                blocks.authentication.push(blockInfo);
-            } else if (item.name.includes('chart') || item.name.includes('graph')) {
-                blockInfo.description = 'Data visualization and chart components';
-                blocks.charts.push(blockInfo);
-            } else if (item.name.includes('mail') || item.name.includes('email')) {
-                blockInfo.description = 'Email and mail interface components';
-                blocks.mail.push(blockInfo);
-            } else if (item.name.includes('music') || item.name.includes('player')) {
-                blockInfo.description = 'Music player and media components';
-                blocks.music.push(blockInfo);
-            } else {
-                blockInfo.description = `${item.name} - Custom UI block`;
-                blocks.other.push(blockInfo);
+function getBasicSvelteStructure(): any {
+    return {
+        path: DOCS_BASE_PATH,
+        type: 'directory',
+        note: 'Basic structure provided due to API limitations',
+        children: {
+            'ui': {
+                path: `${DOCS_BASE_PATH}/ui`,
+                type: 'directory',
+                description: 'Contains all Svelte UI components',
+                note: 'Component directories with .svelte files are located here'
+            },
+            'examples': {
+                path: `${DOCS_BASE_PATH}/examples`,
+                type: 'directory',
+                description: 'Contains component demo examples',
+                note: 'Demo files showing component usage'
+            },
+            'blocks': {
+                path: `${DOCS_BASE_PATH}/blocks`,
+                type: 'directory',
+                description: 'Contains pre-built blocks and layouts',
+                note: 'Complex components and page layouts'
+            },
+            'hooks': {
+                path: `${DOCS_BASE_PATH}/hooks`,
+                type: 'directory',
+                description: 'Contains custom Svelte hooks',
+                note: 'Reusable Svelte hooks and utilities'
+            },
+            'lib': {
+                path: `${DOCS_BASE_PATH}/lib`,
+                type: 'directory',
+                description: 'Contains utility libraries and functions',
+                note: 'Helper functions and utilities'
             }
         }
-        
-        // Sort blocks within each category
-        Object.keys(blocks).forEach(key => {
-            blocks[key].sort((a: any, b: any) => a.name.localeCompare(b.name));
-        });
-        
-        // Filter by category if specified
-        if (category) {
-            const categoryLower = category.toLowerCase();
-            if (blocks[categoryLower]) {
-                return {
-                    category,
-                    blocks: blocks[categoryLower],
-                    total: blocks[categoryLower].length,
-                    description: `${category.charAt(0).toUpperCase() + category.slice(1)} blocks available in shadcn/ui v4`,
-                    usage: `Use 'get_block' tool with the block name to get the full source code and implementation details.`
-                };
-            } else {
-                return {
-                    category,
-                    blocks: [],
-                    total: 0,
-                    availableCategories: Object.keys(blocks).filter(key => blocks[key].length > 0),
-                    suggestion: `Category '${category}' not found. Available categories: ${Object.keys(blocks).filter(key => blocks[key].length > 0).join(', ')}`
-                };
-            }
-        }
-        
-        // Calculate totals
-        const totalBlocks = Object.values(blocks).flat().length;
-        const nonEmptyCategories = Object.keys(blocks).filter(key => blocks[key].length > 0);
-        
-        return {
-            categories: blocks,
-            totalBlocks,
-            availableCategories: nonEmptyCategories,
-            summary: Object.keys(blocks).reduce((acc: any, key) => {
-                if (blocks[key].length > 0) {
-                    acc[key] = blocks[key].length;
-                }
-                return acc;
-            }, {}),
-            usage: "Use 'get_block' tool with a specific block name to get full source code and implementation details.",
-            examples: nonEmptyCategories.slice(0, 3).map(cat => 
-                blocks[cat][0] ? `${cat}: ${blocks[cat][0].name}` : ''
-            ).filter(Boolean)
-        };
-        
-    } catch (error: any) {
-        if (error.response?.status === 404) {
-            throw new Error('Blocks directory not found in the v4 registry');
-        }
-        throw error;
-    }
+    };
 }
 
 /**
@@ -810,16 +846,12 @@ async function getAvailableBlocks(category?: string): Promise<any> {
  * @param apiKey GitHub Personal Access Token
  */
 function setGitHubApiKey(apiKey: string): void {
-    // Update the Authorization header for the GitHub API instance
     if (apiKey && apiKey.trim()) {
         (githubApi.defaults.headers as any)['Authorization'] = `Bearer ${apiKey.trim()}`;
         logInfo('GitHub API key updated successfully');
-        console.error('GitHub API key updated successfully');
     } else {
-        // Remove authorization header if empty key provided
         delete (githubApi.defaults.headers as any)['Authorization'];
-        console.error('GitHub API key removed - using unauthenticated requests');
-        console.error('For higher rate limits and reliability, provide a GitHub API token. See setup instructions: https://github.com/Jpisnice/shadcn-ui-mcp-server#readme');
+        logWarning('GitHub API key removed - using unauthenticated requests');
     }
 }
 
@@ -839,7 +871,7 @@ async function getGitHubRateLimit(): Promise<any> {
 export const axios = {
     githubRaw,
     githubApi,
-    buildDirectoryTree: buildDirectoryTreeWithFallback, // Use fallback version by default
+    buildDirectoryTree: buildDirectoryTreeWithFallback,
     buildDirectoryTreeWithFallback,
     getComponentSource,
     getComponentDemo,
@@ -849,13 +881,16 @@ export const axios = {
     getAvailableBlocks,
     setGitHubApiKey,
     getGitHubRateLimit,
-    // Path constants for easy access
+    // Path constants for shadcn-svelte
     paths: {
         REPO_OWNER,
         REPO_NAME,
         REPO_BRANCH,
-        V4_BASE_PATH,
-        REGISTRY_PATH,
-        NEW_YORK_V4_PATH
+        DOCS_BASE_PATH,
+        REGISTRY_UI_PATH,
+        REGISTRY_EXAMPLES_PATH,
+        REGISTRY_BLOCKS_PATH,
+        REGISTRY_HOOKS_PATH,
+        REGISTRY_LIB_PATH
     }
 }
