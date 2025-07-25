@@ -16,7 +16,7 @@ export async function handleGetDirectoryStructure({
     const directoryTree = await axios.buildDirectoryTree(
       owner || axios.paths.REPO_OWNER,
       repo || axios.paths.REPO_NAME,
-      path || axios.paths.NEW_YORK_V4_PATH,
+      path || axios.paths.REGISTRY_UI_PATH,
       branch || axios.paths.REPO_BRANCH
     );
     return {

@@ -477,7 +477,7 @@ function getOptimizationInstructions(optimization: string): string {
    - Use $derived and $derived.by for efficient computed values that only update when dependencies change
    - Implement $effect for side effects with automatic cleanup and dependency tracking
    - Leverage Svelte's built-in reactivity with $state for optimal re-rendering
-   - Avoid unnecessary reactive blocks by using $effect.pre for DOM measurements`
+   - Avoid unnecessary reactive blocks by using $effect.pre for DOM measurements`,
    
     accessibility: `
    - Add proper ARIA labels and roles

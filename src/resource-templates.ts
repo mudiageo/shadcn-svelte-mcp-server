@@ -296,7 +296,7 @@ export const getResourceTemplate = (uri: string) => {
         };
         
         // Select appropriate guide based on framework
-        const guide = guides[framework.toLowerCase() as keyof typeof guides] || guides.default;
+        const guide = guides[framework.toLowerCase() as keyof typeof guides] || guides.sveltekit;
         
         return {
           content: `# ${guide.description} with ${packageManager}\n\n${guide.steps.join('\n')}`,
